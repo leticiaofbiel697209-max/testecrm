@@ -144,6 +144,8 @@ class GestaoClickAPI:
         base = {"loja_id": store_id}
         if search_text:
             tentativas = [
+                {**base, "cpf": search_text},
+                {**base, "cnpj": search_text},
                 {**base, "nome": search_text},
                 {**base, "busca": search_text},
                 {**base, "cpf_cnpj": search_text},
@@ -156,7 +158,31 @@ class GestaoClickAPI:
             try:
                 registros = self.list_all("/clientes", params)
                 if registros:
+                    alvo = somente_digitos(search_text)
+                    if alvo and len(alvo) >= 8:
+                        exatos = [
+                            item for item in registros
+                            if alvo in somente_digitos(documento_cliente_registro(item))
+                            or alvo in somente_digitos(item.get("cnpj"))
+                            or alvo in somente_digitos(item.get("cpf"))
+                        ]
+                        if exatos:
+                            return exatos
                     return registros
+            except Exception as exc:
+                ultimo_erro = exc
+        alvo = somente_digitos(search_text)
+        if alvo and len(alvo) >= 8:
+            try:
+                registros = self.list_all("/clientes", {**base})
+                exatos = [
+                    item for item in registros
+                    if alvo in somente_digitos(documento_cliente_registro(item))
+                    or alvo in somente_digitos(item.get("cnpj"))
+                    or alvo in somente_digitos(item.get("cpf"))
+                ]
+                if exatos:
+                    return exatos
             except Exception as exc:
                 ultimo_erro = exc
         if ultimo_erro:
@@ -369,6 +395,23 @@ def custo_total_venda(item):
     return custo
 
 def valor_numerico_simples(valor, padrao=0.0):
+    if valor is None:
+        return padrao
+    if isinstance(valor, str):
+        texto = valor.strip()
+        if not texto:
+            return padrao
+        texto = re.sub(r"[^0-9,.\-]", "", texto)
+        if "," in texto and "." in texto:
+            texto = texto.replace(".", "").replace(",", ".")
+        elif "," in texto:
+            texto = texto.replace(",", ".")
+        elif re.fullmatch(r"-?\d{1,3}(\.\d{3})+", texto):
+            texto = texto.replace(".", "")
+        try:
+            return float(texto)
+        except Exception:
+            return padrao
     convertido = pd.to_numeric(pd.Series([valor]), errors="coerce")
     if convertido.isna().iloc[0]:
         return padrao
@@ -443,22 +486,29 @@ def extrair_itens_registro(registro):
                 or wrapper.get("qtd")
                 or 1
             )
-            valor = (
-                wrapper.get("valor_total")
-                or wrapper.get("valor")
-                or wrapper.get("valor_unitario")
-                or detalhe.get("valor_total")
-                or detalhe.get("valor")
-                or detalhe.get("valor_venda")
-                or 0
-            )
             qtd = valor_numerico_simples(quantidade, 1)
-            valor_item = valor_numerico_simples(valor, 0)
+            valor_unitario = valor_numerico_simples(
+                wrapper.get("valor_unitario")
+                or detalhe.get("valor_unitario")
+                or detalhe.get("valor_venda")
+                or wrapper.get("valor_venda")
+                or 0,
+                0,
+            )
+            valor_total = valor_numerico_simples(
+                wrapper.get("valor_total")
+                or detalhe.get("valor_total")
+                or wrapper.get("valor")
+                or detalhe.get("valor")
+                or 0,
+                0,
+            )
+            valor_item = valor_unitario or (valor_total / qtd if qtd and valor_total else 0)
             partes = [str(nome).strip()]
             if qtd:
                 partes.append(f"qtd. {qtd:g}")
             if valor_item:
-                partes.append(fmt(valor_item))
+                partes.append(f"unit. {fmt(valor_item)}")
             itens.append(" | ".join(partes))
     return itens
 
@@ -517,6 +567,54 @@ def api_gestaoclick():
         raise RuntimeError("Informe os dois tokens da API do GestãoClick.")
     return GestaoClickAPI(access, secret)
 
+SUPABASE_TABELAS_CRM = [
+    "observacoes",
+    "ja_liguei",
+    "retornos_programados",
+    "historico_cliente",
+    "usuarios_vendedoras",
+]
+
+def credenciais_supabase():
+    try:
+        config = st.secrets.get("supabase", {})
+        url = str(config.get("url", "")).strip().rstrip("/")
+        key = str(
+            config.get("anon_key", "")
+            or config.get("service_role_key", "")
+            or config.get("key", "")
+        ).strip()
+    except Exception:
+        url = ""
+        key = ""
+    return url, key
+
+def testar_conexao_supabase():
+    url, key = credenciais_supabase()
+    if not url or not key:
+        raise RuntimeError("Configure [supabase] url e anon_key nos secrets.")
+    resultados = []
+    for tabela in SUPABASE_TABELAS_CRM:
+        endpoint = f"{url}/rest/v1/{urllib.parse.quote(tabela)}?select=*&limit=1"
+        request = urllib.request.Request(
+            endpoint,
+            headers={
+                "apikey": key,
+                "Authorization": f"Bearer {key}",
+                "Accept": "application/json",
+            },
+            method="GET",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=12) as response:
+                resultados.append((tabela, response.status, "OK"))
+        except urllib.error.HTTPError as exc:
+            detalhe = exc.read().decode("utf-8", errors="replace")
+            resultados.append((tabela, exc.code, detalhe[:120]))
+        except Exception as exc:
+            resultados.append((tabela, "erro", str(exc)[:120]))
+    return resultados
+
 def fmt(v):
     try:
         return f"R${float(v):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
@@ -543,6 +641,9 @@ def link_download_bytes(rotulo, conteudo, nome_arquivo, mime):
 
 def norm(x):
     return str(x).strip().lower().replace("º", "o").replace("°", "o")
+
+def somente_digitos(x):
+    return re.sub(r"\D+", "", str(x or ""))
 
 @st.cache_resource(show_spinner=False)
 def conectar_google_sheets():
@@ -2497,10 +2598,13 @@ def dados_item_resumo(texto):
         elif "r$" in parte_lower:
             valor_limpo = (
                 parte_lower.replace("r$", "").strip()
+                .replace("unit.", "").replace("unit", "")
                 .replace(".", "").replace(",", ".")
             )
             valor = valor_numerico_simples(valor_limpo, 0)
-    unitario = valor / quantidade if quantidade and valor else 0.0
+    unitario = valor if any("unit" in parte.lower() for parte in partes[1:]) else (
+        valor / quantidade if quantidade and valor else 0.0
+    )
     return {
         "nome": nome,
         "quantidade": quantidade,
@@ -2592,7 +2696,7 @@ def montar_ofertas_recompra(dados, vendedor="Todas"):
                 "Dias sem comprar": dias_sem,
                 "Última compra": ultima.strftime("%d/%m/%Y"),
                 "Ticket médio": float(info.get("ticket_medio", 0) or 0),
-                "_ultimo_valor_sugerido": ultimo_valor or float(info.get("ticket_medio", 0) or 0),
+                "_ultimo_valor_sugerido": ultimo_valor,
                 "_ultima_data_preco": ultima_data_preco,
                 "_loja_id": dados.get("loja_id", ""),
                 "Oferta": (
@@ -2927,6 +3031,66 @@ def renderizar_email_resumo(cliente, vendedor, oferta, chave, row=None):
         else:
             st.caption("Informe o e-mail do cliente para gerar o rascunho.")
 
+def texto_whatsapp_resumo(cliente, vendedor, oferta, row=None):
+    row = row if row is not None else {}
+    produto = str(row.get("Produto", "") or "").strip()
+    orcamento = str(row.get("Orçamento", "") or "").strip()
+    valor = row.get("Valor", row.get("Ticket médio", 0))
+    dias = row.get("Dias sem comprar", row.get("Idade", ""))
+    intervalo = row.get("Intervalo", "")
+    valor_txt = fmt(valor) if valor else ""
+
+    if orcamento:
+        trecho_valor = f" ({valor_txt})" if valor_txt else ""
+        trecho_tempo = f" Vi que ele está há {dias} dias em aberto." if str(dias).strip() else ""
+        return (
+            f"Oi, tudo bem? Aqui é {vendedor}, da Novaprint.\n\n"
+            f"Passando para ver se conseguimos avançar com o orçamento {orcamento}{trecho_valor}."
+            f"{trecho_tempo}\n\n"
+            "Ficou alguma dúvida ou quer que eu ajuste alguma condição para fecharmos?"
+        )
+
+    if produto:
+        trecho_ciclo = (
+            f"Vi aqui que vocês costumam comprar {produto} a cada {intervalo} dias. "
+            if str(intervalo).strip() else
+            f"Vi aqui uma oportunidade de reposição de {produto}. "
+        )
+        trecho_tempo = f"Já faz {dias} dias desde a última compra. " if str(dias).strip() else ""
+        return (
+            f"Oi, tudo bem? Aqui é {vendedor}, da Novaprint.\n\n"
+            f"{trecho_ciclo}{trecho_tempo}"
+            f"Quer que eu prepare uma condição atualizada de {produto} para você?"
+        )
+
+    return (
+        f"Oi, tudo bem? Aqui é {vendedor}, da Novaprint.\n\n"
+        f"Passando para retomar este ponto: {oferta}\n\n"
+        "Quer que eu te ajude a dar sequência?"
+    )
+
+def renderizar_whatsapp_resumo(cliente, vendedor, oferta, chave, row=None):
+    with st.expander("Preparar WhatsApp"):
+        telefone = st.text_input(
+            "WhatsApp do cliente",
+            key=f"whatsapp_destino_resumo_{chave}",
+            placeholder="Exemplo: 11999999999",
+        )
+        mensagem = st.text_area(
+            "Mensagem",
+            value=texto_whatsapp_resumo(cliente, vendedor, oferta, row),
+            height=170,
+            key=f"whatsapp_msg_resumo_{chave}",
+        )
+        numero = somente_digitos(telefone)
+        if numero:
+            if not numero.startswith("55"):
+                numero = "55" + numero
+            link = "https://wa.me/" + numero + "?text=" + urllib.parse.quote(mensagem)
+            st.markdown(f"[Abrir conversa no WhatsApp]({link})")
+        else:
+            st.caption("Informe o WhatsApp do cliente para gerar a conversa.")
+
 def renderizar_criar_orcamento_sugerido(row, chave):
     produto = str(row.get("Produto", "") or "").strip()
     cliente_id = str(row.get("Cliente ID", row.get("_cliente_id", "")) or "").strip()
@@ -3035,6 +3199,7 @@ Tipo de prioridade: <b>{html_seguro(categoria)}</b><br>
     )
     renderizar_botao_liguei_resumo(cliente_id, cliente, vendedor, oferta, chave)
     renderizar_email_resumo(cliente, vendedor, oferta, chave, row)
+    renderizar_whatsapp_resumo(cliente, vendedor, oferta, chave, row)
     renderizar_criar_orcamento_sugerido(row, chave)
     renderizar_agendamento_resumo(cliente_id, cliente, vendedor, chave)
 
@@ -3194,6 +3359,31 @@ def renderizar_geracao_orcamentos():
                 st.warning(f"Não foi possível buscar clientes na API: {e}")
                 st.session_state.clientes_api_cache[cache_key] = []
         clientes_api = st.session_state.clientes_api_cache.get(cache_key, [])
+        if not clientes_api:
+            clientes_base = dados.get("clientes", pd.DataFrame()).copy()
+            termo_doc = somente_digitos(termo_cliente)
+            if not clientes_base.empty:
+                documento_col = achar_coluna(clientes_base, ["documento", "cnpj", "cpf"])
+                mascara_local = (
+                    clientes_base["Cliente"].astype(str).map(norm).str.contains(
+                        norm(termo_cliente), na=False, regex=False
+                    )
+                    | clientes_base["Cliente ID"].astype(str).map(norm).str.contains(
+                        norm(termo_cliente), na=False, regex=False
+                    )
+                )
+                if documento_col and termo_doc:
+                    mascara_local = mascara_local | clientes_base[documento_col].astype(str).map(
+                        somente_digitos
+                    ).str.contains(termo_doc, na=False, regex=False)
+                clientes_api = [
+                    {
+                        "id": row.get("Cliente ID", ""),
+                        "nome": row.get("Cliente", ""),
+                        "documento": row.get("Documento", ""),
+                    }
+                    for _, row in clientes_base[mascara_local].head(20).iterrows()
+                ]
 
     cliente_escolhido = None
     if clientes_api:
@@ -3201,7 +3391,8 @@ def renderizar_geracao_orcamentos():
             "Cliente encontrado",
             clientes_api,
             format_func=lambda c: (
-                c.get("nome") or c.get("nome_fantasia") or c.get("razao_social") or f"Cliente {c.get('id')}"
+                (c.get("nome") or c.get("nome_fantasia") or c.get("razao_social") or f"Cliente {c.get('id')}")
+                + (f" - {c.get('documento')}" if c.get("documento") else "")
             ),
             key="gerar_orc_cliente",
         )
@@ -5089,8 +5280,28 @@ with st.sidebar.expander("Geração de Orçamentos", expanded=False):
 
 pagina = st.session_state.pagina_atual_crm
 
-with st.sidebar.expander("Fonte dos dados", expanded=False):
+with st.sidebar.expander("Configurações", expanded=False):
     st.info("Fonte automática: API GestãoClick")
+    st.markdown("**Supabase**")
+    st.caption(
+        "Planejado para observações, já liguei, retornos programados, histórico do cliente "
+        "e usuários/vendedoras."
+    )
+    if st.button("Testar conexão Supabase", use_container_width=True):
+        try:
+            resultados_supabase = testar_conexao_supabase()
+            ok = [r for r in resultados_supabase if str(r[1]) in {"200", "206"}]
+            if len(ok) == len(resultados_supabase):
+                st.success("Supabase conectado e tabelas acessíveis.")
+            else:
+                st.warning("Supabase respondeu, mas há tabelas pendentes ou sem permissão.")
+            st.dataframe(
+                pd.DataFrame(resultados_supabase, columns=["Tabela", "Status", "Detalhe"]),
+                use_container_width=True,
+                hide_index=True,
+            )
+        except Exception as e:
+            st.error(f"Não foi possível conectar ao Supabase: {e}")
 modo_dados = "API GestãoClick"
 
 if modo_dados == "API GestãoClick":

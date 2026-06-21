@@ -4,5 +4,3 @@ openpyxl
 gspread
 google-auth
 reportlab
-supabase
-streamlit
