@@ -731,22 +731,26 @@ def salvar_contato_realizado(
         "origem": str(origem),
     }
     abas = garantir_abas_crm()
-   try:
-    resposta = abas["ContatosRealizados"].append_row(
-        list(registro.values()),
-        value_input_option="USER_ENTERED"
-    )
+     }
 
-        resposta = abas["ContatosRealizados"].append_row(
+    abas = garantir_abas_crm()
+
+    try:
+        abas["ContatosRealizados"].append_row(
             list(registro.values()),
             value_input_option="USER_ENTERED"
         )
 
     except Exception as erro:
-        erro_txt = str(erro)
+        raise Exception(f"Erro Google Sheets: {erro}")
 
-        if "Response [200]" not in erro_txt:
-            raise Exception(f"Erro Google Sheets: {erro_txt}")
+    st.session_state.contatos_realizados.append(registro)
+
+    if observacao:
+        try:
+            salvar_observacao_cliente(
+                cliente_id, cliente, vendedor, observacao
+            )
     st.session_state.contatos_realizados.append(registro)
 
     if observacao:
