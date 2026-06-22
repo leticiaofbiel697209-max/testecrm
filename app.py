@@ -731,7 +731,22 @@ def salvar_contato_realizado(
         "origem": str(origem),
     }
     abas = garantir_abas_crm()
-    abas["ContatosRealizados"].append_row(list(registro.values()))
+   try:
+    resposta = abas["ContatosRealizados"].append_row(
+        list(registro.values()),
+        value_input_option="USER_ENTERED"
+    )
+
+        resposta = abas["ContatosRealizados"].append_row(
+            list(registro.values()),
+            value_input_option="USER_ENTERED"
+        )
+
+    except Exception as erro:
+        erro_txt = str(erro)
+
+        if "Response [200]" not in erro_txt:
+            raise Exception(f"Erro Google Sheets: {erro_txt}")
     st.session_state.contatos_realizados.append(registro)
 
     if observacao:
@@ -2880,11 +2895,36 @@ def renderizar_botao_liguei_resumo(cliente_id, cliente, vendedor, oferta, chave)
         key=f"resumo_diario_anotacao_{chave}",
     )
     if st.button(
-        "Já Liguei",
-        key=f"resumo_diario_liguei_{chave}",
-        type="primary",
-        use_container_width=True,
-    ):
+    "Já Liguei",
+    key=f"resumo_diario_liguei_{chave}",
+    type="primary",
+    use_container_width=True,
+):
+    try:
+
+        resultado = salvar_contato_realizado(
+            cliente_id=cliente_id,
+            cliente=cliente,
+            vendedor=vendedor,
+            observacao=observacao,
+            origem="resumo_diario"
+        )
+
+        st.success("✅ Contato registrado com sucesso.")
+        time.sleep(1)
+        st.rerun()
+
+    except Exception as e:
+
+        erro = str(e)
+
+        if "Response [200]" in erro:
+            st.success("✅ Contato registrado com sucesso.")
+            time.sleep(1)
+            st.rerun()
+
+        else:
+            st.error(f"Erro ao registrar contato: {erro}"):
         try:
             salvar_contato_realizado(
                 cliente_id, cliente, vendedor, observacao, "resumo_diario"
