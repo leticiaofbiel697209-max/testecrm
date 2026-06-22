@@ -615,6 +615,75 @@ def testar_conexao_supabase():
             resultados.append((tabela, "erro", str(exc)[:120]))
     return resultados
 
+def credenciais_watidy():
+    try:
+        config = st.secrets.get("watidy", {})
+        base_url = str(
+            config.get("base_url", "https://api-whatsapp.wascript.com.br")
+        ).strip().rstrip("/")
+        token = str(config.get("token", "")).strip()
+        send_path = str(config.get("send_path", "/api/enviar-texto")).strip()
+        phone_field = str(config.get("phone_field", "phone")).strip() or "phone"
+        message_field = str(config.get("message_field", "message")).strip() or "message"
+        instance_id = str(config.get("instance_id", "")).strip()
+        instance_field = str(config.get("instance_field", "instance_id")).strip() or "instance_id"
+    except Exception:
+        base_url = "https://api-whatsapp.wascript.com.br"
+        token = ""
+        send_path = "/api/enviar-texto"
+        phone_field = "phone"
+        message_field = "message"
+        instance_id = ""
+        instance_field = "instance_id"
+    return {
+        "base_url": base_url,
+        "token": token,
+        "send_path": send_path if send_path.startswith("/") else "/" + send_path,
+        "phone_field": phone_field,
+        "message_field": message_field,
+        "instance_id": instance_id,
+        "instance_field": instance_field,
+    }
+
+def watidy_configurado():
+    cfg = credenciais_watidy()
+    return bool(cfg["base_url"] and cfg["token"] and cfg["send_path"])
+
+def enviar_whatsapp_watidy(numero, mensagem):
+    cfg = credenciais_watidy()
+    if not watidy_configurado():
+        raise RuntimeError("Configure [watidy] token e endpoint nos secrets.")
+    numero = somente_digitos(numero)
+    if not numero:
+        raise RuntimeError("Informe o WhatsApp do cliente.")
+    if not numero.startswith("55"):
+        numero = "55" + numero
+    payload = {
+        cfg["phone_field"]: numero,
+        cfg["message_field"]: mensagem,
+    }
+    if cfg["instance_id"]:
+        payload[cfg["instance_field"]] = cfg["instance_id"]
+    endpoint = cfg["base_url"] + cfg["send_path"]
+    request = urllib.request.Request(
+        endpoint,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "Authorization": f"Bearer {cfg['token']}",
+            "token": cfg["token"],
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=20) as response:
+            texto = response.read().decode("utf-8", errors="replace")
+            return response.status, texto
+    except urllib.error.HTTPError as exc:
+        detalhe = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"Watidy retornou erro {exc.code}: {detalhe}") from exc
+
 def fmt(v):
     try:
         return f"R${float(v):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
@@ -716,6 +785,9 @@ def cliente_corresponde(registro, cliente_id, cliente):
         return reg_id == str(cliente_id).strip()
     return norm(registro.get("cliente", "")) == norm(cliente)
 
+def erro_apenas_response_200(exc):
+    return "<Response [200]>" in str(exc) or "Response [200]" in str(exc)
+
 def salvar_contato_realizado(
     cliente_id, cliente, vendedor, observacao="", origem="prioridade"
 ):
@@ -731,7 +803,11 @@ def salvar_contato_realizado(
         "origem": str(origem),
     }
     abas = garantir_abas_crm()
-    abas["ContatosRealizados"].append_row(list(registro.values()))
+    try:
+        abas["ContatosRealizados"].append_row(list(registro.values()))
+    except Exception as e:
+        if not erro_apenas_response_200(e):
+            raise
     st.session_state.contatos_realizados.append(registro)
 
     if observacao:
@@ -744,7 +820,11 @@ def salvar_contato_realizado(
                 f"Contato salvo, mas a observação não pôde ser duplicada "
                 f"no histórico: {e}"
             )
-    concluir_retornos_do_cliente(cliente_id, cliente, agora.date())
+    try:
+        concluir_retornos_do_cliente(cliente_id, cliente, agora.date())
+    except Exception as e:
+        if not erro_apenas_response_200(e):
+            st.warning(f"Contato salvo, mas o retorno nÃ£o pÃ´de ser concluÃ­do: {e}")
     return registro
 
 def salvar_observacao_cliente(cliente_id, cliente, vendedor, observacao):
@@ -759,7 +839,11 @@ def salvar_observacao_cliente(cliente_id, cliente, vendedor, observacao):
         "observacao": str(observacao).strip(),
     }
     abas = garantir_abas_crm()
-    abas["ObservacoesClientes"].append_row(list(registro.values()))
+    try:
+        abas["ObservacoesClientes"].append_row(list(registro.values()))
+    except Exception as e:
+        if not erro_apenas_response_200(e):
+            raise
     st.session_state.observacoes_clientes.append(registro)
     return registro
 
@@ -3087,7 +3171,24 @@ def renderizar_whatsapp_resumo(cliente, vendedor, oferta, chave, row=None):
             if not numero.startswith("55"):
                 numero = "55" + numero
             link = "https://wa.me/" + numero + "?text=" + urllib.parse.quote(mensagem)
-            st.markdown(f"[Abrir conversa no WhatsApp]({link})")
+            if watidy_configurado():
+                if st.button(
+                    "Enviar pelo Watidy",
+                    key=f"whatsapp_watidy_enviar_{chave}",
+                    type="primary",
+                    use_container_width=True,
+                ):
+                    try:
+                        status, resposta = enviar_whatsapp_watidy(numero, mensagem)
+                        st.success(f"Mensagem enviada pelo Watidy. Status {status}.")
+                        if resposta:
+                            st.caption(resposta[:300])
+                    except Exception as e:
+                        st.error(f"NÃ£o foi possÃ­vel enviar pelo Watidy: {e}")
+                        st.markdown(f"[Abrir conversa no WhatsApp]({link})")
+            else:
+                st.caption("Watidy nÃ£o configurado nos secrets. Usando rascunho manual.")
+                st.markdown(f"[Abrir conversa no WhatsApp]({link})")
         else:
             st.caption("Informe o WhatsApp do cliente para gerar a conversa.")
 
@@ -4934,6 +5035,60 @@ Potencial mensal em risco: <b>{fmt_html(r['potencial_mensal'])}</b><br>
 Inadimplência: <b>{fmt_html(r['inadimplencia'])}</b>
 </div>
 """, unsafe_allow_html=True)
+                itens_churn = r.get("itens_comprados", [])
+                if not isinstance(itens_churn, list):
+                    itens_churn = [itens_churn] if str(itens_churn).strip() else []
+                produto_churn = nome_item_resumo(itens_churn[0]) if itens_churn else ""
+                valor_unitario_churn, data_preco_churn = (
+                    ultimo_preco_produto_cliente(
+                        dados,
+                        str(r.get("Cliente ID", "")),
+                        produto_churn,
+                    )
+                    if produto_churn else (0.0, pd.NaT)
+                )
+                oferta_churn = (
+                    f"Cliente em churn. Sugerir recompra de {produto_churn}."
+                    if produto_churn else
+                    "Cliente em churn. Retomar relacionamento e identificar demanda atual."
+                )
+                row_churn = r.to_dict()
+                row_churn.update({
+                    "Categoria": "CHURN",
+                    "Produto": produto_churn,
+                    "Oferta": oferta_churn,
+                    "Valor": r.get("potencial_mensal", 0),
+                    "_cliente_id": str(r.get("Cliente ID", "")),
+                    "_ultimo_valor_sugerido": valor_unitario_churn,
+                    "_ultima_data_preco": data_preco_churn,
+                })
+                chave_churn = chave_widget(
+                    f"churn_{r.get('Cliente ID', '')}_{r.get('Cliente', '')}"
+                )
+                if produto_churn:
+                    st.caption(f"Produto sugerido para retomada: {produto_churn}")
+                renderizar_botao_liguei_resumo(
+                    str(r.get("Cliente ID", "")),
+                    str(r.get("Cliente", "")),
+                    str(r.get("Vendedor", "Sem vendedor")),
+                    oferta_churn,
+                    chave_churn,
+                )
+                renderizar_email_resumo(
+                    str(r.get("Cliente", "")),
+                    str(r.get("Vendedor", "Sem vendedor")),
+                    oferta_churn,
+                    chave_churn,
+                    row_churn,
+                )
+                renderizar_whatsapp_resumo(
+                    str(r.get("Cliente", "")),
+                    str(r.get("Vendedor", "Sem vendedor")),
+                    oferta_churn,
+                    chave_churn,
+                    row_churn,
+                )
+                renderizar_criar_orcamento_sugerido(row_churn, chave_churn)
 
     if pagina == "🔥 Prioridade":
         st.subheader("🔥 Prioridade")
@@ -5302,6 +5457,12 @@ with st.sidebar.expander("Configurações", expanded=False):
             )
         except Exception as e:
             st.error(f"Não foi possível conectar ao Supabase: {e}")
+    st.markdown("**Watidy / WhatsApp**")
+    if watidy_configurado():
+        cfg_watidy = credenciais_watidy()
+        st.success(f"Watidy configurado: {cfg_watidy['base_url']}{cfg_watidy['send_path']}")
+    else:
+        st.warning("Watidy não configurado. O CRM abrirá rascunho no WhatsApp.")
 modo_dados = "API GestãoClick"
 
 if modo_dados == "API GestãoClick":
