@@ -716,6 +716,37 @@ def cliente_corresponde(registro, cliente_id, cliente):
         return reg_id == str(cliente_id).strip()
     return norm(registro.get("cliente", "")) == norm(cliente)
 
+
+def resposta_http_ok(resposta):
+    """
+    Alguns retornos do Google Sheets/gspread podem aparecer como <Response [200]>.
+    200/201/204 são sucesso e não devem ser tratados como erro.
+    """
+    status_code = getattr(resposta, "status_code", None)
+    if status_code is None:
+        status_code = getattr(resposta, "status", None)
+    return status_code in (200, 201, 204)
+
+
+def executar_sheets_seguro(acao, mensagem_contexto="operação no Google Sheets"):
+    """
+    Executa uma ação no Google Sheets e só levanta erro quando a resposta realmente
+    não for sucesso. Corrige o falso erro: <Response [200]>.
+    """
+    try:
+        resposta = acao()
+        if resposta_http_ok(resposta):
+            return resposta
+        return resposta
+    except Exception as e:
+        if resposta_http_ok(e):
+            return e
+        texto = str(e)
+        if "<Response [200]>" in texto or "Response [200]" in texto:
+            return e
+        raise RuntimeError(f"Falha na {mensagem_contexto}: {e}") from e
+
+
 def salvar_contato_realizado(
     cliente_id, cliente, vendedor, observacao="", origem="prioridade"
 ):
@@ -731,26 +762,10 @@ def salvar_contato_realizado(
         "origem": str(origem),
     }
     abas = garantir_abas_crm()
-     }
-
-    abas = garantir_abas_crm()
-
-    try:
-        abas["ContatosRealizados"].append_row(
-            list(registro.values()),
-            value_input_option="USER_ENTERED"
-        )
-
-    except Exception as erro:
-        raise Exception(f"Erro Google Sheets: {erro}")
-
-    st.session_state.contatos_realizados.append(registro)
-
-    if observacao:
-        try:
-            salvar_observacao_cliente(
-                cliente_id, cliente, vendedor, observacao
-            )
+    executar_sheets_seguro(
+        lambda: abas["ContatosRealizados"].append_row(list(registro.values())),
+        "gravação do contato realizado"
+    )
     st.session_state.contatos_realizados.append(registro)
 
     if observacao:
@@ -778,7 +793,10 @@ def salvar_observacao_cliente(cliente_id, cliente, vendedor, observacao):
         "observacao": str(observacao).strip(),
     }
     abas = garantir_abas_crm()
-    abas["ObservacoesClientes"].append_row(list(registro.values()))
+    executar_sheets_seguro(
+        lambda: abas["ObservacoesClientes"].append_row(list(registro.values())),
+        "gravação da observação do cliente"
+    )
     st.session_state.observacoes_clientes.append(registro)
     return registro
 
@@ -799,7 +817,10 @@ def agendar_retorno_cliente(
         "concluido_em": "",
     }
     abas = garantir_abas_crm()
-    abas["RetornosProgramados"].append_row(list(registro.values()))
+    executar_sheets_seguro(
+        lambda: abas["RetornosProgramados"].append_row(list(registro.values())),
+        "gravação do retorno programado"
+    )
     st.session_state.retornos_programados.append(registro)
     return registro
 
@@ -825,8 +846,14 @@ def concluir_retornos_do_cliente(cliente_id, cliente, data_limite):
         for retorno in pendentes:
             for linha, atual in enumerate(registros, start=2):
                 if str(atual.get("id")) == str(retorno.get("id")):
-                    ws.update_cell(linha, 8, "concluído")
-                    ws.update_cell(linha, 10, agora)
+                    executar_sheets_seguro(
+                        lambda: ws.update_cell(linha, 8, "concluído"),
+                        "atualização do status do retorno"
+                    )
+                    executar_sheets_seguro(
+                        lambda: ws.update_cell(linha, 10, agora),
+                        "atualização da conclusão do retorno"
+                    )
                     retorno["status"] = "concluído"
                     retorno["concluido_em"] = agora
                     break
@@ -2899,36 +2926,11 @@ def renderizar_botao_liguei_resumo(cliente_id, cliente, vendedor, oferta, chave)
         key=f"resumo_diario_anotacao_{chave}",
     )
     if st.button(
-    "Já Liguei",
-    key=f"resumo_diario_liguei_{chave}",
-    type="primary",
-    use_container_width=True,
-):
-    try:
-
-        resultado = salvar_contato_realizado(
-            cliente_id=cliente_id,
-            cliente=cliente,
-            vendedor=vendedor,
-            observacao=observacao,
-            origem="resumo_diario"
-        )
-
-        st.success("✅ Contato registrado com sucesso.")
-        time.sleep(1)
-        st.rerun()
-
-    except Exception as e:
-
-        erro = str(e)
-
-        if "Response [200]" in erro:
-            st.success("✅ Contato registrado com sucesso.")
-            time.sleep(1)
-            st.rerun()
-
-        else:
-            st.error(f"Erro ao registrar contato: {erro}"):
+        "Já Liguei",
+        key=f"resumo_diario_liguei_{chave}",
+        type="primary",
+        use_container_width=True,
+    ):
         try:
             salvar_contato_realizado(
                 cliente_id, cliente, vendedor, observacao, "resumo_diario"
