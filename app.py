@@ -622,7 +622,8 @@ def credenciais_watidy():
             config.get("base_url", "https://api-whatsapp.wascript.com.br")
         ).strip().rstrip("/")
         token = str(config.get("token", "")).strip()
-        send_path = str(config.get("send_path", "/api/enviar-texto")).strip()
+        send_path = str(config.get("send_path", "/send-message")).strip()
+        fallback_paths = config.get("fallback_paths", [])
         phone_field = str(config.get("phone_field", "phone")).strip() or "phone"
         message_field = str(config.get("message_field", "message")).strip() or "message"
         instance_id = str(config.get("instance_id", "")).strip()
@@ -630,7 +631,8 @@ def credenciais_watidy():
     except Exception:
         base_url = "https://api-whatsapp.wascript.com.br"
         token = ""
-        send_path = "/api/enviar-texto"
+        send_path = "/send-message"
+        fallback_paths = []
         phone_field = "phone"
         message_field = "message"
         instance_id = ""
@@ -639,6 +641,11 @@ def credenciais_watidy():
         "base_url": base_url,
         "token": token,
         "send_path": send_path if send_path.startswith("/") else "/" + send_path,
+        "fallback_paths": [
+            p if str(p).startswith("/") else "/" + str(p)
+            for p in (fallback_paths or [])
+            if str(p).strip()
+        ],
         "phone_field": phone_field,
         "message_field": message_field,
         "instance_id": instance_id,
@@ -658,31 +665,71 @@ def enviar_whatsapp_watidy(numero, mensagem):
         raise RuntimeError("Informe o WhatsApp do cliente.")
     if not numero.startswith("55"):
         numero = "55" + numero
-    payload = {
+    payload_base = {
         cfg["phone_field"]: numero,
         cfg["message_field"]: mensagem,
     }
     if cfg["instance_id"]:
-        payload[cfg["instance_field"]] = cfg["instance_id"]
-    endpoint = cfg["base_url"] + cfg["send_path"]
-    request = urllib.request.Request(
-        endpoint,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-            "Authorization": f"Bearer {cfg['token']}",
-            "token": cfg["token"],
-        },
-        method="POST",
+        payload_base[cfg["instance_field"]] = cfg["instance_id"]
+    payloads = [
+        payload_base,
+        {"number": numero, "message": mensagem, **({cfg["instance_field"]: cfg["instance_id"]} if cfg["instance_id"] else {})},
+        {"phone": numero, "text": mensagem, **({cfg["instance_field"]: cfg["instance_id"]} if cfg["instance_id"] else {})},
+        {"telefone": numero, "mensagem": mensagem, **({cfg["instance_field"]: cfg["instance_id"]} if cfg["instance_id"] else {})},
+    ]
+    caminhos = []
+    for caminho in [
+        cfg["send_path"],
+        *cfg.get("fallback_paths", []),
+        "/send-message",
+        "/api/send-message",
+        "/message/send",
+        "/api/message/send",
+        "/messages/send",
+        "/api/messages/send",
+        "/sendText",
+        "/api/sendText",
+        "/send/text",
+        "/api/send/text",
+        "/send",
+        "/api/send",
+    ]:
+        if caminho and caminho not in caminhos:
+            caminhos.append(caminho)
+    erros = []
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "Authorization": f"Bearer {cfg['token']}",
+        "token": cfg["token"],
+        "x-api-key": cfg["token"],
+    }
+    for caminho in caminhos:
+        endpoint = cfg["base_url"] + caminho
+        for payload in payloads:
+            request = urllib.request.Request(
+                endpoint,
+                data=json.dumps(payload).encode("utf-8"),
+                headers=headers,
+                method="POST",
+            )
+            try:
+                with urllib.request.urlopen(request, timeout=20) as response:
+                    texto = response.read().decode("utf-8", errors="replace")
+                    return response.status, f"Endpoint usado: {caminho}\n{texto}"
+            except urllib.error.HTTPError as exc:
+                detalhe = exc.read().decode("utf-8", errors="replace")
+                erros.append(f"{caminho}: {exc.code} - {detalhe[:140]}")
+                if exc.code not in {400, 404, 405, 422}:
+                    raise RuntimeError(f"Watidy retornou erro {exc.code}: {detalhe}") from exc
+            except Exception as exc:
+                erros.append(f"{caminho}: {exc}")
+                break
+    raise RuntimeError(
+        "Nenhum endpoint Watidy aceitou o envio. "
+        "Confira o send_path da documentação da sua conta. Tentativas: "
+        + " | ".join(erros[:8])
     )
-    try:
-        with urllib.request.urlopen(request, timeout=20) as response:
-            texto = response.read().decode("utf-8", errors="replace")
-            return response.status, texto
-    except urllib.error.HTTPError as exc:
-        detalhe = exc.read().decode("utf-8", errors="replace")
-        raise RuntimeError(f"Watidy retornou erro {exc.code}: {detalhe}") from exc
 
 def fmt(v):
     try:
