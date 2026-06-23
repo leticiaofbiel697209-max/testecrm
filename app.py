@@ -514,6 +514,78 @@ def extrair_itens_registro(registro):
             itens.append(" | ".join(partes))
     return itens
 
+def percentual_comissao_texto(valor):
+    texto = str(valor or "").strip().replace(",", ".")
+    match = re.search(r"(\d+(?:\.\d+)?)\s*%", texto)
+    if not match:
+        return None
+    pct = float(match.group(1))
+    if 0.25 <= pct <= 5:
+        return pct
+    return None
+
+def extrair_itens_comissao(registro):
+    itens = []
+    for campo, chave_detalhe in (("produtos", "produto"), ("servicos", "servico")):
+        for wrapper in registro.get(campo) or []:
+            detalhe = wrapper.get(chave_detalhe) or {}
+            nome = (
+                primeiro_valor_campos(
+                    wrapper, detalhe,
+                    campos=[
+                        "nome", "descricao", "descrição", "nome_produto",
+                        "produto_nome", "descricao_produto", "nome_servico",
+                        "nome_serviço", "servico_nome", "serviço_nome",
+                    ],
+                )
+                or buscar_valor_recursivo(
+                    wrapper,
+                    ["nome", "descricao", "descrição", "nome_produto", "produto_nome"]
+                )
+                or "Item sem identificação"
+            )
+            quantidade = valor_numerico_simples(
+                wrapper.get("quantidade") or detalhe.get("quantidade") or wrapper.get("qtd") or 1,
+                1,
+            )
+            valor_unitario = valor_numerico_simples(
+                wrapper.get("valor_unitario")
+                or detalhe.get("valor_unitario")
+                or wrapper.get("valor_venda")
+                or detalhe.get("valor_venda")
+                or 0,
+                0,
+            )
+            valor_total = valor_numerico_simples(
+                wrapper.get("valor_total")
+                or detalhe.get("valor_total")
+                or wrapper.get("valor")
+                or detalhe.get("valor")
+                or 0,
+                0,
+            )
+            if not valor_total and valor_unitario:
+                valor_total = valor_unitario * quantidade
+            tipo = (
+                primeiro_valor_campos(
+                    wrapper, detalhe,
+                    campos=["tipo", "Tipo", "comissao", "comissão", "percentual_comissao"]
+                )
+                or buscar_valor_recursivo(
+                    wrapper,
+                    ["tipo", "Tipo", "comissao", "comissão", "percentual_comissao"]
+                )
+            )
+            percentual = percentual_comissao_texto(tipo)
+            itens.append({
+                "produto": str(nome).strip(),
+                "quantidade": quantidade,
+                "valor_total": valor_total,
+                "tipo": str(tipo or "").strip(),
+                "percentual": percentual,
+            })
+    return itens
+
 def agregar_itens_cliente(df, chave_coluna, itens_coluna):
     if df.empty or chave_coluna not in df.columns or itens_coluna not in df.columns:
         return pd.Series(dtype=object)
@@ -1434,6 +1506,27 @@ def total_movimentos_liquidados(movimentos):
     ])
     return float(numero_coluna(valores).sum())
 
+def ciclo_meta_comercial(referencia):
+    ref = pd.Timestamp(referencia).normalize()
+    if ref.day >= 21:
+        inicio = ref.replace(day=21)
+        fim = (inicio + pd.DateOffset(months=1)).replace(day=20)
+    else:
+        fim = ref.replace(day=20)
+        inicio = (fim - pd.DateOffset(months=1)).replace(day=21)
+    return inicio, fim
+
+def ciclo_comissao_fechado(referencia):
+    ref = pd.Timestamp(referencia).normalize()
+    if ref.day > 20:
+        fim = ref.replace(day=20)
+    else:
+        fim = (ref - pd.DateOffset(months=1)).replace(day=20)
+    inicio = (fim - pd.DateOffset(months=1)).replace(day=21)
+    prazo_pagamento = fim + pd.offsets.MonthEnd(0)
+    data_pagamento = (prazo_pagamento + pd.DateOffset(months=1)).replace(day=5)
+    return inicio, fim, prazo_pagamento, data_pagamento
+
 def calcular_resultado_financeiro(financeiro, contas_pagar, recebido_mes, pago_mes):
     receber = calcular_metricas_financeiras(financeiro)
     total_pagar = (
@@ -1531,9 +1624,10 @@ def calcular_financeiro_real(dados, configuracao):
     valor_col = achar_coluna(vendas, ["valor"])
     custo_col = achar_coluna(vendas, ["custo"])
     fim = pd.Timestamp(dados.get("periodo_fim", date.today()))
-    inicio_mes = fim.replace(day=1)
+    inicio_mes, fim_meta = ciclo_meta_comercial(fim)
+    fim_realizado = min(fim, fim_meta)
     vendas_mes = vendas[
-        (vendas[data_col] >= inicio_mes) & (vendas[data_col] <= fim)
+        (vendas[data_col] >= inicio_mes) & (vendas[data_col] <= fim_realizado)
     ].copy()
     receita = float(vendas_mes[valor_col].sum())
     custo = float(vendas_mes[custo_col].sum()) if custo_col else 0.0
@@ -1625,8 +1719,8 @@ def calcular_gestao_comercial(dados, configuracao):
     ).fillna(0)
     resumo["Distancia_meta"] = (resumo["Meta"] - resumo["Faturamento"]).clip(lower=0)
 
-    dias_decorridos = max(1, fim.day)
-    dias_mes = int((fim + pd.offsets.MonthEnd(0)).day)
+    dias_decorridos = max(1, int((fim_realizado.normalize() - inicio_mes.normalize()).days) + 1)
+    dias_mes = max(1, int((fim_meta.normalize() - inicio_mes.normalize()).days) + 1)
     projecao = float(vendas_mes[valor_col].sum()) / dias_decorridos * dias_mes
 
     conversao = 0.0
@@ -1674,6 +1768,8 @@ def calcular_gestao_comercial(dados, configuracao):
         "realizado": float(vendas_mes[valor_col].sum()),
         "projecao": projecao,
         "distancia_meta": max(0, meta_geral - float(vendas_mes[valor_col].sum())),
+        "ciclo_meta_inicio": inicio_mes,
+        "ciclo_meta_fim": fim_meta,
         "conversao_orcamentos": conversao,
         "orcamentos_total": total_orc,
         "orcamentos_perdidos": int(perdidos),
@@ -1943,6 +2039,130 @@ def calcular_indicadores_retencao_ceo(
         "novos_clientes_anterior": novos_anterior,
         "taxa_recuperacao": taxa_recuperacao,
         "historico": historico,
+    }
+
+def data_movimento_recebimento(item):
+    for campo in (
+        "data_pagamento", "data_recebimento", "data_liquidacao",
+        "data_liquidação", "data_baixa", "data"
+    ):
+        data = pd.to_datetime(item.get(campo), format="%Y-%m-%d", errors="coerce")
+        if pd.notna(data):
+            return data
+    return pd.NaT
+
+def chave_cliente_movimento(item):
+    cliente_id = str(item.get("cliente_id") or item.get("Cliente ID") or "").strip()
+    if cliente_id and cliente_id.lower() not in {"nan", "none"}:
+        return cliente_id
+    documento = documento_cliente_registro(item)
+    if documento:
+        return somente_digitos(documento)
+    return norm(item.get("nome_cliente") or item.get("cliente") or item.get("destinado") or "")
+
+def calcular_comissoes(dados, referencia=None):
+    referencia = pd.Timestamp(referencia or date.today())
+    inicio, fim, prazo_pagamento, data_pagamento = ciclo_comissao_fechado(referencia)
+    vendas = dados.get("vendas_validas", pd.DataFrame()).copy()
+    if vendas.empty:
+        return {
+            "inicio": inicio, "fim": fim, "prazo": prazo_pagamento,
+            "pagamento": data_pagamento, "itens": pd.DataFrame(),
+            "pendentes": pd.DataFrame(), "resumo": pd.DataFrame(),
+        }
+    data_col = achar_coluna(vendas, ["data"])
+    valor_col = achar_coluna(vendas, ["valor"])
+    vendedor_col = achar_coluna(vendas, ["vendedor"])
+    cliente_col = achar_coluna(vendas, ["cliente"])
+    cliente_id_col = achar_coluna(vendas, ["cliente id"])
+    if not data_col:
+        return {
+            "inicio": inicio, "fim": fim, "prazo": prazo_pagamento,
+            "pagamento": data_pagamento, "itens": pd.DataFrame(),
+            "pendentes": pd.DataFrame(), "resumo": pd.DataFrame(),
+        }
+    vendas[data_col] = pd.to_datetime(vendas[data_col], errors="coerce")
+    vendas_ciclo = vendas[(vendas[data_col] >= inicio) & (vendas[data_col] <= fim)].copy()
+
+    recebimentos = dados.get("recebimentos_liquidados", []) or []
+    clientes_pagos = set()
+    for rec in recebimentos:
+        data_rec = data_movimento_recebimento(rec)
+        if pd.notna(data_rec) and inicio <= data_rec <= prazo_pagamento:
+            chave = chave_cliente_movimento(rec)
+            if chave:
+                clientes_pagos.add(chave)
+
+    linhas = []
+    pendentes = []
+    for _, venda in vendas_ciclo.iterrows():
+        cliente = str(venda.get(cliente_col, "Cliente sem nome")) if cliente_col else "Cliente sem nome"
+        cliente_id = str(venda.get(cliente_id_col, "")).strip() if cliente_id_col else ""
+        documento = str(venda.get("Documento", "") or "")
+        chaves_venda = {
+            cliente_id,
+            somente_digitos(documento),
+            norm(cliente),
+        }
+        pago = bool(clientes_pagos & {c for c in chaves_venda if c})
+        itens = venda.get("_itens_comissao", [])
+        if not isinstance(itens, list):
+            itens = []
+        if not itens:
+            total_venda = float(venda.get(valor_col, 0) or 0) if valor_col else 0.0
+            pendentes.append({
+                "Vendedor": venda.get(vendedor_col, "Sem vendedor") if vendedor_col else "Sem vendedor",
+                "Cliente": cliente,
+                "Data venda": venda.get(data_col),
+                "Produto": "Venda sem itens detalhados",
+                "Valor": total_venda,
+                "Tipo": "",
+                "Motivo": "Sem campo Tipo/percentual nos itens",
+            })
+            continue
+        for item in itens:
+            pct = item.get("percentual")
+            base = float(item.get("valor_total", 0) or 0)
+            linha_base = {
+                "Vendedor": venda.get(vendedor_col, "Sem vendedor") if vendedor_col else "Sem vendedor",
+                "Cliente": cliente,
+                "Data venda": venda.get(data_col),
+                "Produto": item.get("produto", ""),
+                "Valor": base,
+                "Tipo": item.get("tipo", ""),
+            }
+            if pct is None:
+                pendentes.append({**linha_base, "Motivo": "Percentual não cadastrado no Tipo"})
+                continue
+            comissao = base * float(pct) / 100
+            linhas.append({
+                **linha_base,
+                "Percentual": float(pct),
+                "Comissão": comissao,
+                "Pago no prazo": pago,
+                "Status": "A pagar no dia 5" if pago else (
+                    "Aguardando pagamento do cliente" if referencia <= prazo_pagamento else "Não pago no prazo"
+                ),
+            })
+
+    itens_df = pd.DataFrame(linhas)
+    pendentes_df = pd.DataFrame(pendentes)
+    if not itens_df.empty:
+        resumo = itens_df[itens_df["Pago no prazo"]].groupby("Vendedor").agg(
+            Vendas=("Valor", "sum"),
+            Comissao=("Comissão", "sum"),
+            Itens=("Produto", "count"),
+        ).reset_index()
+    else:
+        resumo = pd.DataFrame(columns=["Vendedor", "Vendas", "Comissao", "Itens"])
+    return {
+        "inicio": inicio,
+        "fim": fim,
+        "prazo": prazo_pagamento,
+        "pagamento": data_pagamento,
+        "itens": itens_df,
+        "pendentes": pendentes_df,
+        "resumo": resumo,
     }
 
 def processar_dataframes(vendas, orc, contas):
@@ -2257,6 +2477,7 @@ def api_para_dataframes(vendas_api, orcamentos_api, recebimentos_api, vendedor_i
         "Observacoes": item.get("observacoes") or "",
         "Observacoes internas": item.get("observacoes_interna") or "",
         "_itens_texto": extrair_itens_registro(item),
+        "_itens_comissao": extrair_itens_comissao(item),
         "Vendedor ID": item.get("vendedor_id"),
         "_venda_id": item.get("id"),
     } for item in vendas_api])
@@ -2294,7 +2515,7 @@ def api_para_dataframes(vendas_api, orcamentos_api, recebimentos_api, vendedor_i
     if vendas.empty:
         vendas = pd.DataFrame(columns=[
             "Cliente", "Cliente ID", "Data", "Valor", "Custo", "Situacao",
-            "Vendedor", "Vendedor ID", "Documento", "_itens_texto", "_venda_id"
+            "Vendedor", "Vendedor ID", "Documento", "_itens_texto", "_itens_comissao", "_venda_id"
         ])
     if orcamentos.empty:
         orcamentos = pd.DataFrame(columns=[
@@ -2341,6 +2562,7 @@ def processar_api(
         "vendedor_nome": vendedor_nome,
         "atualizado_em": datetime.now(),
         "contas_pagar": contas_pagar,
+        "recebimentos_liquidados": recebidos_mes,
         "recebido_mes": recebido_mes,
         "pago_mes": pago_mes,
         "mes_resultado": fim.strftime("%m/%Y"),
@@ -4764,6 +4986,12 @@ def renderizar_gestao_comercial(dados):
     cols[1].metric("Realizado no mês", fmt(indicadores["realizado"]))
     cols[2].metric("Projeção de fechamento", fmt(indicadores["projecao"]))
     cols[3].metric("Distância da meta", fmt(indicadores["distancia_meta"]))
+    if indicadores.get("ciclo_meta_inicio") is not None:
+        st.caption(
+            f"Meta calculada no ciclo comercial de "
+            f"{indicadores['ciclo_meta_inicio']:%d/%m/%Y} a "
+            f"{indicadores['ciclo_meta_fim']:%d/%m/%Y}."
+        )
     cols2 = st.columns(3)
     cols2[0].metric(
         "Conversão de orçamentos",
@@ -4904,6 +5132,65 @@ Potencial/ticket: <b>{potencial}</b><br>
 Motivo: <b>{motivo}</b>
 </div>
 """, unsafe_allow_html=True)
+
+def renderizar_comissao(dados):
+    st.subheader("Comissão")
+    st.caption(
+        "Apuração baseada no ciclo de vendas fechado de 21 a 20. "
+        "A comissão só entra como a pagar quando há pagamento identificado até o fim do mês."
+    )
+    apuracao = calcular_comissoes(dados)
+    inicio = apuracao["inicio"]
+    fim = apuracao["fim"]
+    prazo = apuracao["prazo"]
+    pagamento = apuracao["pagamento"]
+    itens = apuracao["itens"]
+    pendentes = apuracao["pendentes"]
+    resumo = apuracao["resumo"]
+
+    st.info(
+        f"Ciclo de venda: {inicio:%d/%m/%Y} a {fim:%d/%m/%Y} | "
+        f"Cliente precisa pagar até {prazo:%d/%m/%Y} | "
+        f"Pagamento da comissão em {pagamento:%d/%m/%Y}"
+    )
+    c1, c2, c3, c4 = st.columns(4)
+    comissao_paga = float(itens.loc[itens["Pago no prazo"], "Comissão"].sum()) if not itens.empty else 0.0
+    comissao_total = float(itens["Comissão"].sum()) if not itens.empty else 0.0
+    aguardando = int((~itens["Pago no prazo"]).sum()) if not itens.empty else 0
+    c1.metric("Comissão a pagar", fmt(comissao_paga))
+    c2.metric("Comissão potencial", fmt(comissao_total))
+    c3.metric("Itens aguardando pagamento", aguardando)
+    c4.metric("Itens sem percentual", len(pendentes))
+
+    st.markdown("#### Resumo por vendedora")
+    if resumo.empty:
+        st.info("Nenhuma comissão paga no prazo foi identificada para este ciclo.")
+    else:
+        tabela = resumo.copy()
+        tabela["Vendas"] = tabela["Vendas"].map(fmt)
+        tabela["Comissao"] = tabela["Comissao"].map(fmt)
+        tabela = tabela.rename(columns={"Comissao": "Comissão"})
+        st.dataframe(tabela, use_container_width=True, hide_index=True)
+
+    with st.expander("Itens com percentual de comissão", expanded=True):
+        if itens.empty:
+            st.info("Nenhum item com percentual de comissão foi encontrado no campo Tipo.")
+        else:
+            tabela = itens.copy()
+            tabela["Data venda"] = pd.to_datetime(tabela["Data venda"], errors="coerce").dt.strftime("%d/%m/%Y")
+            tabela["Valor"] = tabela["Valor"].map(fmt)
+            tabela["Comissão"] = tabela["Comissão"].map(fmt)
+            tabela["Percentual"] = tabela["Percentual"].map(lambda x: f"{x:.2f}%".replace(".", ","))
+            st.dataframe(tabela, use_container_width=True, hide_index=True)
+
+    with st.expander("Itens ignorados por falta de percentual"):
+        if pendentes.empty:
+            st.success("Nenhum item pendente de percentual.")
+        else:
+            tabela = pendentes.copy()
+            tabela["Data venda"] = pd.to_datetime(tabela["Data venda"], errors="coerce").dt.strftime("%d/%m/%Y")
+            tabela["Valor"] = tabela["Valor"].map(fmt)
+            st.dataframe(tabela, use_container_width=True, hide_index=True)
 
 def renderizar_retencao_crescimento_ceo(
     indicadores, clientes, prioridade
@@ -5067,6 +5354,9 @@ def renderizar():
 
     if pagina == "Geração de Orçamentos":
         renderizar_geracao_orcamentos()
+
+    if pagina == "Comissão":
+        renderizar_comissao(dados)
 
     if pagina == "Ações de Hoje":
         st.subheader("Ações de Hoje")
@@ -5586,9 +5876,11 @@ if "abrir_resumo_diario" not in st.session_state:
     st.session_state.abrir_resumo_diario = False
 if "abrir_geracao_orcamentos" not in st.session_state:
     st.session_state.abrir_geracao_orcamentos = False
+if "abrir_comissao" not in st.session_state:
+    st.session_state.abrir_comissao = False
 if "resumo_diario_secao" not in st.session_state:
     st.session_state.resumo_diario_secao = "Início"
-opcoes_paginas_crm = opcoes_menu_crm + ["Resumo Diário", "Geração de Orçamentos"]
+opcoes_paginas_crm = opcoes_menu_crm + ["Resumo Diário", "Geração de Orçamentos", "Comissão"]
 if st.session_state.pagina_atual_crm not in opcoes_paginas_crm:
     st.session_state.pagina_atual_crm = "👑 CEO"
 
@@ -5610,9 +5902,10 @@ with st.sidebar.expander("📊 CRM Inteligente", expanded=True):
     elif pagina_selecionada != radio_anterior:
         st.session_state.abrir_resumo_diario = False
         st.session_state.abrir_geracao_orcamentos = False
+        st.session_state.abrir_comissao = False
         st.session_state.pagina_atual_crm = pagina_selecionada
         st.session_state.menu_lateral_crm_anterior = pagina_selecionada
-    elif not st.session_state.abrir_resumo_diario and not st.session_state.abrir_geracao_orcamentos:
+    elif not st.session_state.abrir_resumo_diario and not st.session_state.abrir_geracao_orcamentos and not st.session_state.abrir_comissao:
         st.session_state.pagina_atual_crm = pagina_selecionada
 
 with st.sidebar.expander("Resumo Diário", expanded=False):
@@ -5644,6 +5937,7 @@ with st.sidebar.expander("Resumo Diário", expanded=False):
         st.session_state.resumo_diario_secao = secao_resumo_lateral
         st.session_state.abrir_resumo_diario = True
         st.session_state.abrir_geracao_orcamentos = False
+        st.session_state.abrir_comissao = False
         st.session_state.pagina_atual_crm = "Resumo Diário"
         st.rerun()
 
@@ -5652,7 +5946,17 @@ with st.sidebar.expander("Geração de Orçamentos", expanded=False):
     if st.button("Abrir Geração de Orçamentos", use_container_width=True):
         st.session_state.abrir_geracao_orcamentos = True
         st.session_state.abrir_resumo_diario = False
+        st.session_state.abrir_comissao = False
         st.session_state.pagina_atual_crm = "Geração de Orçamentos"
+        st.rerun()
+
+with st.sidebar.expander("Comissão", expanded=False):
+    st.caption("Apuração de comissão por ciclo 21 a 20.")
+    if st.button("Abrir Comissão", use_container_width=True):
+        st.session_state.abrir_comissao = True
+        st.session_state.abrir_resumo_diario = False
+        st.session_state.abrir_geracao_orcamentos = False
+        st.session_state.pagina_atual_crm = "Comissão"
         st.rerun()
 
 pagina = st.session_state.pagina_atual_crm
