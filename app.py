@@ -30,7 +30,7 @@ except Exception:
     REPORTLAB_OK = False
 
 st.set_page_config(layout="wide")
-st.title("Ã°Å¸â€œÅ  CRM Inteligente - NÃƒÂ­vel CEO")
+st.title("📊 CRM Inteligente - Nível CEO")
 
 if "dados_processados" not in st.session_state:
     st.session_state.dados_processados = None
@@ -106,15 +106,15 @@ class GestaoClickAPI:
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode("utf-8", errors="replace")
             raise RuntimeError(
-                f"GestÃƒÂ£oClick retornou erro {exc.code}: {detail}"
+                f"GestãoClick retornou erro {exc.code}: {detail}"
             ) from exc
         except urllib.error.URLError as exc:
             raise RuntimeError(
-                f"NÃƒÂ£o foi possÃƒÂ­vel acessar o GestÃƒÂ£oClick: {exc.reason}"
+                f"Não foi possível acessar o GestãoClick: {exc.reason}"
             ) from exc
         except TimeoutError as exc:
             raise RuntimeError(
-                "O GestÃƒÂ£oClick demorou para responder. Tente novamente em alguns "
+                "O GestãoClick demorou para responder. Tente novamente em alguns "
                 "segundos ou confira os tokens."
             ) from exc
         finally:
@@ -122,7 +122,7 @@ class GestaoClickAPI:
 
         if payload.get("status") != "success":
             raise RuntimeError(
-                payload.get("message") or "Resposta inesperada do GestÃƒÂ£oClick."
+                payload.get("message") or "Resposta inesperada do GestãoClick."
             )
         return payload
 
@@ -310,7 +310,7 @@ class GestaoClickAPI:
     def append_budget_note(self, budget_id, store_id, note, user):
         budget = self.budget(budget_id, store_id)
         if not budget:
-            raise RuntimeError("O orÃƒÂ§amento nÃƒÂ£o foi encontrado no GestÃƒÂ£oClick.")
+            raise RuntimeError("O orçamento não foi encontrado no GestãoClick.")
 
         timestamp = datetime.now().strftime("%d/%m/%Y %H:%M")
         entry = f"[CRM {timestamp}] {user} | {note.strip()}"
@@ -345,15 +345,15 @@ def gestaoclick_cached_list_all(access_token, secret_token, path, params_json):
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode("utf-8", errors="replace")
             raise RuntimeError(
-                f"GestÃƒÂ£oClick retornou erro {exc.code}: {detail}"
+                f"GestãoClick retornou erro {exc.code}: {detail}"
             ) from exc
         except urllib.error.URLError as exc:
             raise RuntimeError(
-                f"NÃƒÂ£o foi possÃƒÂ­vel acessar o GestÃƒÂ£oClick: {exc.reason}"
+                f"Não foi possível acessar o GestãoClick: {exc.reason}"
             ) from exc
         if payload.get("status") != "success":
             raise RuntimeError(
-                payload.get("message") or "Resposta inesperada do GestÃƒÂ£oClick."
+                payload.get("message") or "Resposta inesperada do GestãoClick."
             )
         page_records = payload.get("data") or []
         if not page_records:
@@ -364,7 +364,7 @@ def gestaoclick_cached_list_all(access_token, secret_token, path, params_json):
             break
         page += 1
         if page > 200:
-            raise RuntimeError("A consulta excedeu 200 pÃƒÂ¡ginas.")
+            raise RuntimeError("A consulta excedeu 200 páginas.")
     return records
 
 def deduplicar_registros(registros):
@@ -462,11 +462,11 @@ def extrair_itens_registro(registro):
         for wrapper in registro.get(campo) or []:
             detalhe = wrapper.get(chave_detalhe) or {}
             campos_nome = [
-                "nome", "descricao", "descriÃƒÂ§ÃƒÂ£o", "nome_produto",
-                "produto_nome", "descricao_produto", "descriÃƒÂ§ÃƒÂ£o_produto",
-                "nome_servico", "nome_serviÃƒÂ§o", "servico_nome",
-                "serviÃƒÂ§o_nome", "descricao_servico", "descricao_serviÃƒÂ§o",
-                "referencia", "referÃƒÂªncia", "codigo", "cÃƒÂ³digo", "sku"
+                "nome", "descricao", "descrição", "nome_produto",
+                "produto_nome", "descricao_produto", "descrição_produto",
+                "nome_servico", "nome_serviço", "servico_nome",
+                "serviço_nome", "descricao_servico", "descricao_serviço",
+                "referencia", "referência", "codigo", "código", "sku"
             ]
             nome = (
                 primeiro_valor_campos(wrapper, detalhe, campos=campos_nome)
@@ -476,12 +476,12 @@ def extrair_itens_registro(registro):
                 id_item = primeiro_valor_campos(
                     wrapper, detalhe,
                     campos=[
-                        "produto_id", "servico_id", "serviÃƒÂ§o_id",
-                        "id_produto", "id_servico", "id_serviÃƒÂ§o", "id"
+                        "produto_id", "servico_id", "serviço_id",
+                        "id_produto", "id_servico", "id_serviço", "id"
                     ]
                 )
-                tipo = "Produto" if campo == "produtos" else "ServiÃƒÂ§o"
-                nome = f"{tipo} ID {id_item}" if id_item else "Item sem identificaÃƒÂ§ÃƒÂ£o"
+                tipo = "Produto" if campo == "produtos" else "Serviço"
+                nome = f"{tipo} ID {id_item}" if id_item else "Item sem identificação"
             quantidade = (
                 wrapper.get("quantidade")
                 or detalhe.get("quantidade")
@@ -566,7 +566,7 @@ def credenciais_gestaoclick_no_secrets():
 def api_gestaoclick():
     access, secret = credenciais_gestaoclick()
     if not access or not secret:
-        raise RuntimeError("Informe os dois tokens da API do GestÃƒÂ£oClick.")
+        raise RuntimeError("Informe os dois tokens da API do GestãoClick.")
     return GestaoClickAPI(access, secret)
 
 SUPABASE_TABELAS_CRM = [
@@ -725,6 +725,40 @@ def enviar_whatsapp_watidy(numero, mensagem):
         raise RuntimeError("Informe o WhatsApp do cliente.")
     if not numero.startswith("55"):
         numero = "55" + numero
+    endpoint_get = (
+        cfg["base_url"]
+        + "/api/enviar-texto/"
+        + urllib.parse.quote(cfg["token"])
+        + "?"
+        + urllib.parse.urlencode({
+            "phone": numero,
+            "number": numero,
+            "numero": numero,
+            "telefone": numero,
+            "message": mensagem,
+            "mensagem": mensagem,
+            "text": mensagem,
+        })
+    )
+    request_get = urllib.request.Request(
+        endpoint_get,
+        headers={
+            "Accept": "application/json",
+            "Authorization": f"Bearer {cfg['token']}",
+            "token": cfg["token"],
+        },
+        method="GET",
+    )
+    try:
+        with urllib.request.urlopen(request_get, timeout=20) as response:
+            texto = response.read().decode("utf-8", errors="replace")
+            return response.status, f"Endpoint usado: GET /api/enviar-texto/{{token}}\n{texto}"
+    except urllib.error.HTTPError as exc:
+        detalhe_get = exc.read().decode("utf-8", errors="replace")
+        if exc.code not in {400, 404, 405, 422}:
+            raise RuntimeError(
+                f"Watidy retornou erro {exc.code}: {limpar_erro_api(detalhe_get)}"
+            ) from exc
     payload_base = {
         cfg["phone_field"]: numero,
         cfg["message_field"]: mensagem,
@@ -800,13 +834,13 @@ def enviar_whatsapp_watidy(numero, mensagem):
                 break
     if erros and all(": 404 -" in erro for erro in erros):
         raise RuntimeError(
-            "Endpoint Watidy nÃƒÆ’Ã‚Â£o encontrado. Configure [watidy].send_url com a URL completa "
-            "exata da opÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o de envio exibida na documentaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o da sua conta. "
+            "Endpoint Watidy nÃ£o encontrado. Configure [watidy].send_url com a URL completa "
+            "exata da opÃ§Ã£o de envio exibida na documentaÃ§Ã£o da sua conta. "
             f"Base atual: {cfg['base_url']}."
         )
     raise RuntimeError(
         "Nenhum endpoint Watidy aceitou o envio. "
-        "Confira o send_path da documentaÃƒÂ§ÃƒÂ£o da sua conta. Tentativas: "
+        "Confira o send_path da documentação da sua conta. Tentativas: "
         + " | ".join(erros[:4])
     )
 
@@ -835,7 +869,7 @@ def link_download_bytes(rotulo, conteudo, nome_arquivo, mime):
     )
 
 def norm(x):
-    return str(x).strip().lower().replace("Ã‚Âº", "o").replace("Ã‚Â°", "o")
+    return str(x).strip().lower().replace("º", "o").replace("°", "o")
 
 def somente_digitos(x):
     return re.sub(r"\D+", "", str(x or ""))
@@ -901,7 +935,7 @@ def carregar_persistencia_crm():
         return True
     except Exception as e:
         st.warning(
-            f"NÃƒÂ£o foi possÃƒÂ­vel carregar a persistÃƒÂªncia do Google Sheets: {e}"
+            f"Não foi possível carregar a persistência do Google Sheets: {e}"
         )
         return False
 
@@ -924,7 +958,7 @@ def salvar_contato_realizado(
         "vendedor": str(vendedor or "Sem vendedor"),
         "data": agora.strftime("%d/%m/%Y"),
         "hora": agora.strftime("%H:%M:%S"),
-        "status": "jÃƒÂ¡ liguei",
+        "status": "já liguei",
         "observacao": str(observacao or ""),
         "origem": str(origem),
     }
@@ -943,14 +977,14 @@ def salvar_contato_realizado(
             )
         except Exception as e:
             st.warning(
-                f"Contato salvo, mas a observaÃƒÂ§ÃƒÂ£o nÃƒÂ£o pÃƒÂ´de ser duplicada "
-                f"no histÃƒÂ³rico: {e}"
+                f"Contato salvo, mas a observação não pôde ser duplicada "
+                f"no histórico: {e}"
             )
     try:
         concluir_retornos_do_cliente(cliente_id, cliente, agora.date())
     except Exception as e:
         if not erro_apenas_response_200(e):
-            st.warning(f"Contato salvo, mas o retorno nÃƒÆ’Ã‚Â£o pÃƒÆ’Ã‚Â´de ser concluÃƒÆ’Ã‚Â­do: {e}")
+            st.warning(f"Contato salvo, mas o retorno nÃ£o pÃ´de ser concluÃ­do: {e}")
     return registro
 
 def salvar_observacao_cliente(cliente_id, cliente, vendedor, observacao):
@@ -1020,13 +1054,13 @@ def concluir_retornos_do_cliente(cliente_id, cliente, data_limite):
         for retorno in pendentes:
             for linha, atual in enumerate(registros, start=2):
                 if str(atual.get("id")) == str(retorno.get("id")):
-                    ws.update_cell(linha, 8, "concluÃƒÂ­do")
+                    ws.update_cell(linha, 8, "concluído")
                     ws.update_cell(linha, 10, agora)
-                    retorno["status"] = "concluÃƒÂ­do"
+                    retorno["status"] = "concluído"
                     retorno["concluido_em"] = agora
                     break
     except Exception as e:
-        st.warning(f"Contato salvo, mas o retorno nÃƒÂ£o pÃƒÂ´de ser concluÃƒÂ­do: {e}")
+        st.warning(f"Contato salvo, mas o retorno não pôde ser concluído: {e}")
 
 def carregar_clientes_ligados_hoje():
     try:
@@ -1043,7 +1077,7 @@ def salvar_cliente_ligado(cliente, origem):
         hoje = datetime.now().strftime("%d/%m/%Y")
         ws.append_row([hoje, cliente, USUARIO_PADRAO, origem])
     except Exception as e:
-        st.warning(f"NÃƒÂ£o consegui salvar no Google Sheets: {e}")
+        st.warning(f"Não consegui salvar no Google Sheets: {e}")
 
 def carregar_observacoes_orcamentos():
     try:
@@ -1076,7 +1110,7 @@ def salvar_observacao_orcamento(numero, cliente, observacao):
         else:
             ws.append_row([numero, cliente, observacao, USUARIO_PADRAO, hoje])
     except Exception as e:
-        st.warning(f"NÃƒÂ£o consegui salvar observaÃƒÂ§ÃƒÂ£o: {e}")
+        st.warning(f"Não consegui salvar observação: {e}")
 
 def achar_coluna(df, termos):
     for c in df.columns:
@@ -1136,12 +1170,12 @@ def numero_coluna(s):
 
 def status_orcamento(dias):
     if dias <= 1:
-        return "Ã¢Å“â€¦ AceitÃƒÂ¡vel"
+        return "✅ Aceitável"
     if dias == 2:
-        return "Ã°Å¸â€œÅ¾ Ligar hoje"
+        return "📞 Ligar hoje"
     if dias == 3:
-        return "Ã¢Å¡Â Ã¯Â¸Â Urgente"
-    return "Ã°Å¸Å¡Â¨ Risco de ter perdido"
+        return "⚠️ Urgente"
+    return "🚨 Risco de ter perdido"
 
 def score_risco(media_atraso):
     if pd.isna(media_atraso) or media_atraso <= 0:
@@ -1150,60 +1184,60 @@ def score_risco(media_atraso):
 
 def descricao_score(score):
     if score >= 85:
-        return "Ã°Å¸Å¸Â¢ Baixo risco de inadimplÃƒÂªncia"
+        return "🟢 Baixo risco de inadimplência"
     if score >= 65:
-        return "Ã°Å¸Å¸Â¡ Risco moderado de inadimplÃƒÂªncia"
+        return "🟡 Risco moderado de inadimplência"
     if score >= 40:
-        return "Ã°Å¸Å¸Â  Alto risco de inadimplÃƒÂªncia"
-    return "Ã°Å¸â€Â´ Risco crÃƒÂ­tico de inadimplÃƒÂªncia"
+        return "🟠 Alto risco de inadimplência"
+    return "🔴 Risco crítico de inadimplência"
 
 def temperatura_cliente(dias, intervalo):
     if intervalo <= 0:
         if dias <= 30:
-            return "Ã°Å¸Å¸Â£ NOVO"
+            return "🟣 NOVO"
         if dias <= 60:
-            return "Ã°Å¸Å¸Â¡ ATENÃƒâ€¡ÃƒÆ’O"
-        return "Ã¢Å¡Â« CLIENTE INATIVO"
+            return "🟡 ATENÇÃO"
+        return "⚫ CLIENTE INATIVO"
     if intervalo * 0.9 <= dias <= intervalo * 1.2:
-        return "Ã°Å¸Å¸Â¢ QUENTE"
+        return "🟢 QUENTE"
     if intervalo * 1.2 < dias <= intervalo * 1.5:
-        return "Ã°Å¸Å¸Â¡ ATENÃƒâ€¡ÃƒÆ’O"
+        return "🟡 ATENÇÃO"
     if intervalo * 1.5 < dias <= intervalo * 2:
-        return "Ã°Å¸â€Â´ ATRASADO NA RECOMPRA"
+        return "🔴 ATRASADO NA RECOMPRA"
     if dias > intervalo * 2:
-        return "Ã¢Å¡Â« CLIENTE INATIVO"
-    return "Ã°Å¸â€Âµ CEDO"
+        return "⚫ CLIENTE INATIVO"
+    return "🔵 CEDO"
 
 def sugestao_ia(dias, intervalo, orcs, inad, potencial):
     temp = temperatura_cliente(dias, intervalo)
     if inad > 0:
-        return "Ã°Å¸â€™Â¸ Cliente com inadimplÃƒÂªncia. Priorizar cobranÃƒÂ§a antes de nova venda."
-    if orcs > 0 and temp in ["Ã°Å¸Å¸Â¢ QUENTE", "Ã°Å¸Å¸Â¡ ATENÃƒâ€¡ÃƒÆ’O"]:
-        return "Ã°Å¸â€œâ€ž Cliente com orÃƒÂ§amento em aberto e bom momento de compra. Priorizar fechamento hoje."
-    if temp == "Ã°Å¸Å¸Â¢ QUENTE":
-        return f"Ã°Å¸Å¸Â¢ Momento ideal. Ligar com oferta direta. Potencial mensal: {fmt(potencial)}."
-    if temp == "Ã°Å¸Å¸Â¡ ATENÃƒâ€¡ÃƒÆ’O":
-        return "Ã°Å¸Å¸Â¡ Cliente passou levemente do ciclo. Fazer contato de retomada antes que esfrie."
-    if temp == "Ã°Å¸â€Â´ ATRASADO NA RECOMPRA":
-        return "Ã°Å¸â€Â´ Cliente atrasado na recompra. Entender se comprou de concorrente ou se esqueceu."
-    if temp == "Ã¢Å¡Â« CLIENTE INATIVO":
-        return "Ã¢Å¡Â« Cliente inativo. Usar abordagem de reativaÃƒÂ§ÃƒÂ£o com condiÃƒÂ§ÃƒÂ£o especial."
+        return "💸 Cliente com inadimplência. Priorizar cobrança antes de nova venda."
+    if orcs > 0 and temp in ["🟢 QUENTE", "🟡 ATENÇÃO"]:
+        return "📄 Cliente com orçamento em aberto e bom momento de compra. Priorizar fechamento hoje."
+    if temp == "🟢 QUENTE":
+        return f"🟢 Momento ideal. Ligar com oferta direta. Potencial mensal: {fmt(potencial)}."
+    if temp == "🟡 ATENÇÃO":
+        return "🟡 Cliente passou levemente do ciclo. Fazer contato de retomada antes que esfrie."
+    if temp == "🔴 ATRASADO NA RECOMPRA":
+        return "🔴 Cliente atrasado na recompra. Entender se comprou de concorrente ou se esqueceu."
+    if temp == "⚫ CLIENTE INATIVO":
+        return "⚫ Cliente inativo. Usar abordagem de reativação com condição especial."
     if orcs > 0:
-        return "Ã°Å¸â€œâ€ž Cliente com orÃƒÂ§amento em aberto. Fazer follow-up comercial."
-    if temp == "Ã°Å¸â€Âµ CEDO":
-        return "Ã°Å¸â€Âµ Ainda cedo para venda direta. Manter relacionamento ou aquecer contato."
-    return "Ã°Å¸Å¸Â£ Cliente novo. Iniciar relacionamento comercial."
+        return "📄 Cliente com orçamento em aberto. Fazer follow-up comercial."
+    if temp == "🔵 CEDO":
+        return "🔵 Ainda cedo para venda direta. Manter relacionamento ou aquecer contato."
+    return "🟣 Cliente novo. Iniciar relacionamento comercial."
 
 def score_comercial(row):
     score = 0
     temp = row["temperatura"]
-    if temp == "Ã°Å¸Å¸Â¢ QUENTE":
+    if temp == "🟢 QUENTE":
         score += 40
-    elif temp == "Ã°Å¸Å¸Â¡ ATENÃƒâ€¡ÃƒÆ’O":
+    elif temp == "🟡 ATENÇÃO":
         score += 30
-    elif temp == "Ã°Å¸â€Â´ ATRASADO NA RECOMPRA":
+    elif temp == "🔴 ATRASADO NA RECOMPRA":
         score += 20
-    elif temp == "Ã¢Å¡Â« CLIENTE INATIVO":
+    elif temp == "⚫ CLIENTE INATIVO":
         score += 10
     if row["orcamentos_em_aberto"] > 0:
         score += 20
@@ -1266,7 +1300,7 @@ def preparar_financeiro(contas, col_cliente, col_vencimento, col_valor, col_stat
         if row["Vencida"]:
             atraso = int(row["Dias_atraso"])
             if atraso <= 7:
-                return "Vencido atÃƒÂ© 7 dias"
+                return "Vencido até 7 dias"
             if atraso <= 15:
                 return "Vencido de 8 a 15 dias"
             if atraso <= 30:
@@ -1275,7 +1309,7 @@ def preparar_financeiro(contas, col_cliente, col_vencimento, col_valor, col_stat
                 return "Vencido de 31 a 60 dias"
             return "Vencido acima de 60 dias"
         if dias <= 7:
-            return "A vencer em atÃƒÂ© 7 dias"
+            return "A vencer em até 7 dias"
         if dias <= 15:
             return "A vencer de 8 a 15 dias"
         if dias <= 30:
@@ -1374,14 +1408,14 @@ def preparar_contas_pagar(pagamentos):
         if row["Vencida"]:
             atraso = int(row["Dias_atraso"])
             if atraso <= 7:
-                return "Vencido atÃƒÂ© 7 dias"
+                return "Vencido até 7 dias"
             if atraso <= 30:
                 return "Vencido de 8 a 30 dias"
             if atraso <= 60:
                 return "Vencido de 31 a 60 dias"
             return "Vencido acima de 60 dias"
         if dias <= 7:
-            return "A pagar em atÃƒÂ© 7 dias"
+            return "A pagar em até 7 dias"
         if dias <= 15:
             return "A pagar de 8 a 15 dias"
         if dias <= 30:
@@ -1454,38 +1488,38 @@ def estrategia_financeira(metricas):
     dicas = []
     if resultado < 0:
         dicas.append(
-            "O mÃƒÂªs apresenta prejuÃƒÂ­zo financeiro: pagamentos liquidados superam "
-            "os recebimentos. Congele despesas nÃƒÂ£o essenciais e renegocie vencimentos."
+            "O mês apresenta prejuízo financeiro: pagamentos liquidados superam "
+            "os recebimentos. Congele despesas não essenciais e renegocie vencimentos."
         )
     elif resultado > 0:
         dicas.append(
-            "O mÃƒÂªs apresenta lucro financeiro. Preserve uma parcela como reserva "
+            "O mês apresenta lucro financeiro. Preserve uma parcela como reserva "
             "antes de ampliar compras, despesas ou retiradas."
         )
     else:
         dicas.append(
-            "O resultado financeiro mensal estÃƒÂ¡ no ponto de equilÃƒÂ­brio. "
-            "Evite novos compromissos fixos atÃƒÂ© formar margem de seguranÃƒÂ§a."
+            "O resultado financeiro mensal está no ponto de equilíbrio. "
+            "Evite novos compromissos fixos até formar margem de segurança."
         )
     if saldo_30 < 0:
         dicas.append(
-            f"HÃƒÂ¡ dÃƒÂ©ficit projetado de {fmt(abs(saldo_30))} para os prÃƒÂ³ximos 30 dias. "
-            "Antecipe cobranÃƒÂ§as e negocie fornecedores antes dos vencimentos."
+            f"Há déficit projetado de {fmt(abs(saldo_30))} para os próximos 30 dias. "
+            "Antecipe cobranças e negocie fornecedores antes dos vencimentos."
         )
     else:
         dicas.append(
-            f"A projeÃƒÂ§ÃƒÂ£o de 30 dias indica sobra de {fmt(saldo_30)} entre entradas "
-            "e saÃƒÂ­das jÃƒÂ¡ registradas."
+            f"A projeção de 30 dias indica sobra de {fmt(saldo_30)} entre entradas "
+            "e saídas já registradas."
         )
     if vencido_pct >= 15:
         dicas.append(
-            "A inadimplÃƒÂªncia estÃƒÂ¡ pressionando o caixa. Priorize cobranÃƒÂ§as por valor, "
-            "idade da dÃƒÂ­vida e probabilidade de recuperaÃƒÂ§ÃƒÂ£o."
+            "A inadimplência está pressionando o caixa. Priorize cobranças por valor, "
+            "idade da dívida e probabilidade de recuperação."
         )
     if pagar_vencido > 0:
         dicas.append(
             f"Existem {fmt(pagar_vencido)} em contas a pagar vencidas; regularize "
-            "primeiro obrigaÃƒÂ§ÃƒÂµes crÃƒÂ­ticas para operaÃƒÂ§ÃƒÂ£o e crÃƒÂ©dito."
+            "primeiro obrigações críticas para operação e crédito."
         )
     return dicas
 
@@ -1524,7 +1558,7 @@ def calcular_financeiro_real(dados, configuracao):
 
     cenarios = {}
     for nome, fator_receber in (
-        ("Conservador", 0.70), ("ProvÃƒÂ¡vel", 0.90), ("Otimista", 1.00)
+        ("Conservador", 0.70), ("Provável", 0.90), ("Otimista", 1.00)
     ):
         cenarios[nome] = (
             saldo_inicial +
@@ -1630,7 +1664,7 @@ def calcular_gestao_comercial(dados, configuracao):
             perdas.loc[
                 perdas["Motivo informado"].isin(["", "nan", "None"]),
                 "Motivo informado"
-            ] = "NÃƒÂ£o informado"
+            ] = "Não informado"
             motivos_perda = (
                 perdas["Motivo informado"].value_counts()
                 .head(10).rename_axis("Motivo").reset_index(name="Quantidade")
@@ -1696,7 +1730,7 @@ def calcular_churn_avancado(dados):
                 if (referencia - datas.max()).days > intervalo * 2:
                     churn_mes += 1
             tendencia.append({
-                "MÃƒÂªs": referencia.strftime("%m/%Y"),
+                "Mês": referencia.strftime("%m/%Y"),
                 "Churn %": churn_mes / conhecidos * 100 if conhecidos else 0.0
             })
     clientes["sazonal"] = clientes["Cliente ID"].astype(str).isin(sazonais)
@@ -1731,12 +1765,12 @@ def classificar_cliente_retencao(row):
     intervalo = float(row.get("intervalo", 0) or 0)
     dias = float(row.get("dias_sem_comprar", 0) or 0)
     if intervalo <= 0:
-        return "SAUDÃƒÂVEL"
+        return "SAUDÁVEL"
     if dias > intervalo * 2:
         return "CHURN"
     if dias > intervalo:
         return "EM RISCO"
-    return "SAUDÃƒÂVEL"
+    return "SAUDÁVEL"
 
 def classificar_status_em_data(datas, referencia):
     datas = pd.to_datetime(datas, errors="coerce").dropna().sort_values()
@@ -1744,16 +1778,16 @@ def classificar_status_em_data(datas, referencia):
     if datas.empty:
         return None
     if len(datas) < 2:
-        return "SAUDÃƒÂVEL"
+        return "SAUDÁVEL"
     intervalo = datas.diff().dt.days.dropna().mean()
     if intervalo <= 0:
-        return "SAUDÃƒÂVEL"
+        return "SAUDÁVEL"
     dias_sem_comprar = (referencia - datas.max()).days
     if dias_sem_comprar > intervalo * 2:
         return "CHURN"
     if dias_sem_comprar > intervalo:
         return "EM RISCO"
-    return "SAUDÃƒÂVEL"
+    return "SAUDÁVEL"
 
 @st.cache_data(show_spinner=False)
 def calcular_indicadores_retencao_ceo(
@@ -1762,7 +1796,7 @@ def calcular_indicadores_retencao_ceo(
 ):
     vazio = {
         "clientes": pd.DataFrame(),
-        "contagem_status": {"SAUDÃƒÂVEL": 0, "EM RISCO": 0, "CHURN": 0},
+        "contagem_status": {"SAUDÁVEL": 0, "EM RISCO": 0, "CHURN": 0},
         "churn_financeiro_mensal": 0.0,
         "churn_financeiro_anual": 0.0,
         "carteira_risco_mensal": 0.0,
@@ -1786,7 +1820,7 @@ def calcular_indicadores_retencao_ceo(
         classificar_cliente_retencao, axis=1
     )
     contagem = clientes_calc["status_retencao"].value_counts().to_dict()
-    for status in ("SAUDÃƒÂVEL", "EM RISCO", "CHURN"):
+    for status in ("SAUDÁVEL", "EM RISCO", "CHURN"):
         contagem.setdefault(status, 0)
 
     churn = clientes_calc[clientes_calc["status_retencao"] == "CHURN"]
@@ -1852,7 +1886,7 @@ def calcular_indicadores_retencao_ceo(
                         for cliente_id, status in status_ref.items()
                         if status == "EM RISCO"
                     )
-                    saudaveis = sum(1 for status in status_ref.values() if status == "SAUDÃƒÂVEL")
+                    saudaveis = sum(1 for status in status_ref.values() if status == "SAUDÁVEL")
                     em_risco = sum(1 for status in status_ref.values() if status == "EM RISCO")
                     churn_qtd = sum(1 for status in status_ref.values() if status == "CHURN")
 
@@ -1868,18 +1902,18 @@ def calcular_indicadores_retencao_ceo(
                     taxa_mes = recuperados / len(risco_anterior) * 100 if risco_anterior else 0.0
 
                     linhas.append({
-                        "MÃƒÂªs": mes.strftime("%m/%Y"),
+                        "Mês": mes.strftime("%m/%Y"),
                         "_mes": mes,
                         "CAC": cac_mes,
                         "Novos clientes": novos,
                         "Churn financeiro": churn_mes,
                         "Carteira em risco": risco_mes,
-                        "SaudÃƒÂ¡veis": saudaveis,
+                        "Saudáveis": saudaveis,
                         "Em risco": em_risco,
                         "Churn": churn_qtd,
                         "Clientes em risco anterior": len(risco_anterior),
                         "Clientes recuperados": recuperados,
-                        "Taxa de recuperaÃƒÂ§ÃƒÂ£o": taxa_mes,
+                        "Taxa de recuperação": taxa_mes,
                     })
                 historico = pd.DataFrame(linhas)
                 if not historico.empty:
@@ -1887,7 +1921,7 @@ def calcular_indicadores_retencao_ceo(
                     anterior = historico.iloc[-2] if len(historico) > 1 else None
                     cac_atual = float(atual["CAC"])
                     novos_atual = int(atual["Novos clientes"])
-                    taxa_recuperacao = float(atual["Taxa de recuperaÃƒÂ§ÃƒÂ£o"])
+                    taxa_recuperacao = float(atual["Taxa de recuperação"])
                     if anterior is not None:
                         cac_anterior = float(anterior["CAC"])
                         novos_anterior = int(anterior["Novos clientes"])
@@ -1923,18 +1957,18 @@ def processar_dataframes(vendas, orc, contas):
     cv_vendedor = achar_coluna(vendas, ["vendedor"])
     cv_vendedor_id = achar_coluna(vendas, ["vendedor id"])
     cv_documento = achar_coluna(vendas, ["documento", "cnpj", "cpf"])
-    cv_item = achar_coluna(vendas, ["produto", "servico", "serviÃƒÂ§o", "item", "descricao", "descriÃƒÂ§ÃƒÂ£o"])
-    co_num = achar_coluna(orc, ["nÃ‚Âº", "nÃ‚Â°", "numero", "nÃƒÂºmero"])
+    cv_item = achar_coluna(vendas, ["produto", "servico", "serviço", "item", "descricao", "descrição"])
+    co_num = achar_coluna(orc, ["nº", "n°", "numero", "número"])
     co_cli = achar_coluna(orc, ["cliente"])
     co_cli_id = achar_coluna(orc, ["cliente id"])
     co_data = achar_coluna(orc, ["data"])
-    co_status = achar_coluna(orc, ["situaÃƒÂ§ÃƒÂ£o", "situacao", "status"])
+    co_status = achar_coluna(orc, ["situação", "situacao", "status"])
     co_valor = achar_coluna(orc, ["valor"])
-    co_item = achar_coluna(orc, ["produto", "servico", "serviÃƒÂ§o", "item", "descricao", "descriÃƒÂ§ÃƒÂ£o"])
+    co_item = achar_coluna(orc, ["produto", "servico", "serviço", "item", "descricao", "descrição"])
     cc_cli = achar_coluna(contas, ["cliente", "destinado"])
     cc_cli_id = achar_coluna(contas, ["cliente id"])
     cc_venc = achar_coluna(contas, ["vencimento"])
-    cc_status = achar_coluna(contas, ["situaÃƒÂ§ÃƒÂ£o", "situacao", "status"])
+    cc_status = achar_coluna(contas, ["situação", "situacao", "status"])
     cc_valor = achar_coluna(contas, ["valor total", "valor"])
 
     faltando = []
@@ -1942,17 +1976,17 @@ def processar_dataframes(vendas, orc, contas):
         "Cliente vendas": cv_cli,
         "Data vendas": cv_data,
         "Valor vendas": cv_valor,
-        "NÃ‚Âº orÃƒÂ§amento": co_num,
-        "Cliente orÃƒÂ§amento": co_cli,
-        "Data orÃƒÂ§amento": co_data,
-        "Status orÃƒÂ§amento": co_status,
+        "Nº orçamento": co_num,
+        "Cliente orçamento": co_cli,
+        "Data orçamento": co_data,
+        "Status orçamento": co_status,
         "Cliente contas": cc_cli,
         "Valor contas": cc_valor,
     }.items():
         if col is None:
             faltando.append(nome)
     if faltando:
-        raise Exception("Colunas nÃƒÂ£o encontradas: " + ", ".join(faltando))
+        raise Exception("Colunas não encontradas: " + ", ".join(faltando))
 
     vendas[cv_data] = data_coluna(vendas[cv_data])
     vendas[cv_valor] = numero_coluna(vendas[cv_valor])
@@ -2129,7 +2163,7 @@ def processar_dataframes(vendas, orc, contas):
     clientes["cliente_estrategico"] = clientes["faturamento"] >= limite_estrategico
 
     clientes["potencial_recuperavel"] = clientes.apply(
-        lambda x: x["potencial_mensal"] if x["temperatura"] in ["Ã°Å¸â€Â´ ATRASADO NA RECOMPRA", "Ã¢Å¡Â« CLIENTE INATIVO"] else 0,
+        lambda x: x["potencial_mensal"] if x["temperatura"] in ["🔴 ATRASADO NA RECOMPRA", "⚫ CLIENTE INATIVO"] else 0,
         axis=1
     )
 
@@ -2186,11 +2220,11 @@ def processar_dados(vendas_file, orc_file, contas_file):
     vendas = carregar_excel(vendas_file, [["cliente"], ["data"], ["valor"]])
     orc = carregar_excel(
         orc_file,
-        [["nÃ‚Âº", "nÃ‚Â°", "numero", "nÃƒÂºmero"], ["cliente"], ["data"], ["situaÃƒÂ§ÃƒÂ£o", "status"]]
+        [["nº", "n°", "numero", "número"], ["cliente"], ["data"], ["situação", "status"]]
     )
     contas = carregar_excel(
         contas_file,
-        [["cliente", "destinado"], ["vencimento"], ["valor"], ["situaÃƒÂ§ÃƒÂ£o", "status"]]
+        [["cliente", "destinado"], ["vencimento"], ["valor"], ["situação", "status"]]
     )
     dados = processar_dataframes(vendas, orc, contas)
     dados["origem"] = "excel"
@@ -2382,13 +2416,13 @@ def enriquecer_regras_prioridade(clientes, orc_aberto):
         if retornos:
             motivos.append("Retorno programado")
         if orc.get("orc_risco", 0):
-            motivos.append("OrÃƒÂ§amento em risco de perda")
+            motivos.append("Orçamento em risco de perda")
         elif orc.get("orc_urgente", 0):
-            motivos.append("OrÃƒÂ§amento urgente")
+            motivos.append("Orçamento urgente")
         elif orc.get("orc_ligar", 0):
-            motivos.append("OrÃƒÂ§amento: ligar hoje")
+            motivos.append("Orçamento: ligar hoje")
         if proximo_recompra:
-            motivos.append("PrÃƒÂ³ximo da recompra")
+            motivos.append("Próximo da recompra")
         if row["intervalo"] > 0 and row["dias_sem_comprar"] > row["intervalo"] * 1.2:
             motivos.append("Ciclo de compra vencido")
 
@@ -2428,7 +2462,7 @@ def montar_prioridade(clientes):
 
 def montar_resumo(clientes):
     temperaturas = clientes["temperatura"].isin([
-        "Ã°Å¸Å¸Â¢ QUENTE", "Ã°Å¸Å¸Â¡ ATENÃƒâ€¡ÃƒÆ’O", "Ã°Å¸â€Â´ ATRASADO NA RECOMPRA", "Ã¢Å¡Â« CLIENTE INATIVO"
+        "🟢 QUENTE", "🟡 ATENÇÃO", "🔴 ATRASADO NA RECOMPRA", "⚫ CLIENTE INATIVO"
     ])
     regras = (
         clientes["retornos_hoje"].gt(0)
@@ -2569,20 +2603,20 @@ def renderizar_historico_cliente(row):
     ultima_compra = row.get("ultima_compra")
     ultima_compra_txt = (
         ultima_compra.strftime("%d/%m/%Y")
-        if pd.notna(ultima_compra) else "NÃƒÂ£o informada"
+        if pd.notna(ultima_compra) else "Não informada"
     )
 
-    st.write(f"**Vendedor responsÃƒÂ¡vel:** {row.get('Vendedor', 'Sem vendedor')}")
-    st.write(f"**Status atual:** {row.get('temperatura', 'NÃƒÂ£o informado')}")
-    st.write(f"**ÃƒÅ¡ltima compra:** {ultima_compra_txt}")
+    st.write(f"**Vendedor responsável:** {row.get('Vendedor', 'Sem vendedor')}")
+    st.write(f"**Status atual:** {row.get('temperatura', 'Não informado')}")
+    st.write(f"**Última compra:** {ultima_compra_txt}")
 
-    st.markdown("**OrÃƒÂ§amentos em aberto**")
+    st.markdown("**Orçamentos em aberto**")
     numeros = row.get("numeros_orcamentos", [])
     st.write(", ".join(str(numero) for numero in numeros[-5:])) if numeros else st.caption(
-        "Nenhum orÃƒÂ§amento em aberto."
+        "Nenhum orçamento em aberto."
     )
 
-    st.markdown("**ÃƒÅ¡ltimos contatos**")
+    st.markdown("**Últimos contatos**")
     if contatos:
         for contato in contatos[:5]:
             detalhe = (
@@ -2595,7 +2629,7 @@ def renderizar_historico_cliente(row):
     else:
         st.caption("Nenhum contato registrado.")
 
-    st.markdown("**ÃƒÅ¡ltimas observaÃƒÂ§ÃƒÂµes**")
+    st.markdown("**Últimas observações**")
     if observacoes:
         for observacao in observacoes[:5]:
             st.write(
@@ -2603,7 +2637,7 @@ def renderizar_historico_cliente(row):
                 f"{observacao.get('observacao', '')}"
             )
     else:
-        st.caption("Nenhuma observaÃƒÂ§ÃƒÂ£o registrada.")
+        st.caption("Nenhuma observação registrada.")
 
     st.markdown("**Retornos programados**")
     if retornos:
@@ -2727,18 +2761,18 @@ def criar_orcamento_gestaoclick_api(
 ):
     loja_id = dados.get("loja_id")
     if not loja_id:
-        raise RuntimeError("Loja nÃƒÂ£o identificada. Atualize os dados pela API.")
+        raise RuntimeError("Loja não identificada. Atualize os dados pela API.")
     api = api_gestaoclick()
     situacao = situacao_inicial_orcamento(api, loja_id)
     if not situacao:
-        raise RuntimeError("NÃƒÂ£o foi possÃƒÂ­vel localizar uma situaÃƒÂ§ÃƒÂ£o inicial para orÃƒÂ§amento.")
+        raise RuntimeError("Não foi possível localizar uma situação inicial para orçamento.")
     produtos = []
     for item in itens:
         data_preco = item.get("data_preco")
-        data_txt = data_preco.strftime("%d/%m/%Y") if pd.notna(data_preco) else "data nÃƒÂ£o identificada"
+        data_txt = data_preco.strftime("%d/%m/%Y") if pd.notna(data_preco) else "data não identificada"
         detalhes = (
             item.get("detalhes")
-            or f"PreÃƒÂ§o sugerido com base na ÃƒÂºltima venda em {data_txt}."
+            or f"Preço sugerido com base na última venda em {data_txt}."
         )
         produtos.append(
             produto_payload_orcamento(
@@ -2764,13 +2798,13 @@ def criar_orcamento_gestaoclick_api(
     if codigo:
         existente = api.find_budget_by_code(codigo, loja_id)
         if existente:
-            raise RuntimeError(f"O orÃƒÂ§amento {codigo} jÃƒÂ¡ existe no GestÃƒÂ£oClick.")
+            raise RuntimeError(f"O orçamento {codigo} já existe no GestãoClick.")
         payload["codigo"] = int(codigo)
     if vendedor_id:
         payload["vendedor_id"] = int(vendedor_id)
     criado = api.create_budget(payload, loja_id)
     if not criado.get("id"):
-        raise RuntimeError("O GestÃƒÂ£oClick nÃƒÂ£o retornou o ID do orÃƒÂ§amento criado.")
+        raise RuntimeError("O GestãoClick não retornou o ID do orçamento criado.")
     return api.budget(criado["id"], loja_id)
 
 def status_aberto_resumo_diario(status):
@@ -2908,14 +2942,14 @@ def montar_ofertas_recompra(dados, vendedor="Todas"):
                 "Produto": item,
                 "Intervalo": intervalo_item,
                 "Dias sem comprar": dias_sem,
-                "ÃƒÅ¡ltima compra": ultima.strftime("%d/%m/%Y"),
-                "Ticket mÃƒÂ©dio": float(info.get("ticket_medio", 0) or 0),
+                "Última compra": ultima.strftime("%d/%m/%Y"),
+                "Ticket médio": float(info.get("ticket_medio", 0) or 0),
                 "_ultimo_valor_sugerido": ultimo_valor,
                 "_ultima_data_preco": ultima_data_preco,
                 "_loja_id": dados.get("loja_id", ""),
                 "Oferta": (
                     f"{cliente} compra {item} a cada {intervalo_item} dias "
-                    f"e estÃƒÂ¡ hÃƒÂ¡ {dias_sem} dias sem comprar. Ligar oferecendo {item}."
+                    f"e está há {dias_sem} dias sem comprar. Ligar oferecendo {item}."
                 ),
                 "_prioridade": prioridade,
             }
@@ -2927,7 +2961,7 @@ def montar_ofertas_recompra(dados, vendedor="Todas"):
     ofertas = pd.DataFrame(linhas)
     if not ofertas.empty:
         ofertas = ofertas.sort_values(
-            ["_prioridade", "Ticket mÃƒÂ©dio"], ascending=[False, False]
+            ["_prioridade", "Ticket médio"], ascending=[False, False]
         )
     return ofertas
 
@@ -2939,11 +2973,11 @@ def montar_resumo_diario_oportunidades(dados, vendedor="Todas"):
             "calls": 0, "hot": 0, "returns": 0, "untouched": 0, "expiring": 0
         }
 
-    co_num = dados.get("co_num") or achar_coluna(orcamentos, ["nÃ‚Âº", "nÃ‚Â°", "numero", "nÃƒÂºmero"])
+    co_num = dados.get("co_num") or achar_coluna(orcamentos, ["nº", "n°", "numero", "número"])
     co_cli = dados.get("co_cli") or achar_coluna(orcamentos, ["cliente"])
     co_data = dados.get("co_data") or achar_coluna(orcamentos, ["data"])
     co_valor = dados.get("co_valor") or achar_coluna(orcamentos, ["valor"])
-    co_status = achar_coluna(orcamentos, ["situaÃƒÂ§ÃƒÂ£o", "situacao", "status"])
+    co_status = achar_coluna(orcamentos, ["situação", "situacao", "status"])
     co_vendedor = achar_coluna(orcamentos, ["vendedor"])
     co_cli_id = achar_coluna(orcamentos, ["cliente id"])
     co_validade = achar_coluna(orcamentos, ["validade"])
@@ -3021,20 +3055,20 @@ def montar_resumo_diario_oportunidades(dados, vendedor="Todas"):
             categorias.append((110, "RETORNO", "Retorno agendado para hoje ou atrasado", "Retornar"))
             counters["returns"] += 1
         elif not ja_ligou and idade == 2:
-            categorias.append((100, "RETORNO", "OrÃƒÂ§amento com 2 dias: ligar hoje", "Ligar"))
+            categorias.append((100, "RETORNO", "Orçamento com 2 dias: ligar hoje", "Ligar"))
             counters["returns"] += 1
         if not ja_ligou and idade == 3:
-            categorias.append((105, "SEM CONTATO", "Urgente: orÃƒÂ§amento com 3 dias", "Ligar urgente"))
+            categorias.append((105, "SEM CONTATO", "Urgente: orçamento com 3 dias", "Ligar urgente"))
             counters["untouched"] += 1
         elif not ja_ligou and idade >= 4:
-            categorias.append((108, "SEM CONTATO", f"Risco de perda: orÃƒÂ§amento com {idade} dias", "Priorizar"))
+            categorias.append((108, "SEM CONTATO", f"Risco de perda: orçamento com {idade} dias", "Priorizar"))
             counters["untouched"] += 1
 
         sinais = []
         if total >= 5000:
             sinais.append("alto valor")
         if compra_count > 0:
-            sinais.append("jÃƒÂ¡ comprou")
+            sinais.append("já comprou")
         if budget_count > 1:
             sinais.append("cliente recorrente")
         if ja_ligou:
@@ -3051,7 +3085,7 @@ def montar_resumo_diario_oportunidades(dados, vendedor="Todas"):
             categorias.append((85, "VENCENDO", f"Validade termina em {dias} dias", "Renovar"))
             counters["expiring"] += 1
         if not ja_ligou and idade == 1:
-            categorias.append((60, "NOVO", "OrÃƒÂ§amento com 1 dia: acompanhamento normal", "Acompanhar"))
+            categorias.append((60, "NOVO", "Orçamento com 1 dia: acompanhamento normal", "Acompanhar"))
 
         if not categorias:
             continue
@@ -3063,12 +3097,12 @@ def montar_resumo_diario_oportunidades(dados, vendedor="Todas"):
             "Score": score,
             "Cliente": cliente,
             "Vendedor": row["_vendedor_resumo"],
-            "OrÃƒÂ§amento": str(row.get(co_num, "")),
+            "Orçamento": str(row.get(co_num, "")),
             "Valor": total,
             "Idade": idade,
-            "ÃƒÅ¡ltimo contato": "Hoje" if ja_ligou else f"{idade} dias sem contato",
+            "Último contato": "Hoje" if ja_ligou else f"{idade} dias sem contato",
             "Motivo": motivo,
-            "AÃƒÂ§ÃƒÂ£o": acao,
+            "Ação": acao,
             "_oportunidade_quente": oportunidade_quente,
             "_prioridade": prioridade,
             "_budget_id": str(row.get("_orcamento_id", "") or row.get(co_num, "")),
@@ -3089,12 +3123,12 @@ def renderizar_botao_liguei_resumo(cliente_id, cliente, vendedor, oferta, chave)
         if oferta else ""
     )
     observacao = st.text_area(
-        "AnotaÃƒÂ§ÃƒÂ£o para salvar no CRM",
+        "Anotação para salvar no CRM",
         value=observacao_padrao,
         key=f"resumo_diario_anotacao_{chave}",
     )
     if st.button(
-        "JÃƒÂ¡ Liguei",
+        "Já Liguei",
         key=f"resumo_diario_liguei_{chave}",
         type="primary",
         use_container_width=True,
@@ -3103,10 +3137,10 @@ def renderizar_botao_liguei_resumo(cliente_id, cliente, vendedor, oferta, chave)
             salvar_contato_realizado(
                 cliente_id, cliente, vendedor, observacao, "resumo_diario"
             )
-            st.success("Contato registrado e anotaÃƒÂ§ÃƒÂ£o salva no CRM.")
+            st.success("Contato registrado e anotação salva no CRM.")
             st.rerun()
         except Exception as e:
-            st.error(f"NÃƒÂ£o foi possÃƒÂ­vel registrar o contato: {e}")
+            st.error(f"Não foi possível registrar o contato: {e}")
 
 def renderizar_agendamento_resumo(cliente_id, cliente, vendedor, chave):
     with st.expander("Agendar retorno"):
@@ -3122,7 +3156,7 @@ def renderizar_agendamento_resumo(cliente_id, cliente, vendedor, chave):
             key=f"resumo_diario_motivo_{chave}"
         )
         observacao_retorno = st.text_area(
-            "ObservaÃƒÂ§ÃƒÂ£o do retorno",
+            "Observação do retorno",
             key=f"resumo_diario_obs_retorno_{chave}"
         )
         if st.button(
@@ -3138,19 +3172,15 @@ def renderizar_agendamento_resumo(cliente_id, cliente, vendedor, chave):
                 st.success(f"Retorno agendado para {data_retorno:%d/%m/%Y}.")
                 st.rerun()
             except Exception as e:
-                if erro_apenas_response_200(e):
-                    st.success(f"Retorno agendado para {data_retorno:%d/%m/%Y}.")
-                    st.rerun()
-                else:
-                    st.error(f"NÃƒÂ£o foi possÃƒÂ­vel agendar o retorno: {e}")
+                st.error(f"Não foi possível agendar o retorno: {e}")
 
 def texto_email_resumo(cliente, vendedor, oferta, row=None):
     row = row if row is not None else {}
     produto = str(row.get("Produto", "") or "").strip()
-    orcamento = str(row.get("OrÃƒÂ§amento", "") or "").strip()
+    orcamento = str(row.get("Orçamento", "") or "").strip()
     categoria = str(row.get("Categoria", "") or "").strip()
     motivo = str(row.get("Motivo", oferta) or oferta)
-    valor = row.get("Valor", row.get("Ticket mÃƒÂ©dio", 0))
+    valor = row.get("Valor", row.get("Ticket médio", 0))
     intervalo = row.get("Intervalo", "")
     dias = row.get("Dias sem comprar", row.get("Idade", ""))
     valor_txt = fmt(valor) if valor else ""
@@ -3158,44 +3188,44 @@ def texto_email_resumo(cliente, vendedor, oferta, row=None):
     dias_num = valor_numerico_simples(dias, 0)
 
     if orcamento:
-        assunto = f"Sobre o orÃƒÂ§amento {orcamento}"
+        assunto = f"Sobre o orçamento {orcamento}"
         detalhe_valor = f" no valor de {valor_txt}" if valor_txt else ""
         urgencia = (
-            f"Vi que ele jÃƒÂ¡ estÃƒÂ¡ hÃƒÂ¡ {dias} dias em aberto, entÃƒÂ£o quis te chamar antes de perdermos o timing."
+            f"Vi que ele já está há {dias} dias em aberto, então quis te chamar antes de perdermos o timing."
             if str(dias).strip() else
-            "Quis te chamar para ver se ficou alguma dÃƒÂºvida ou se posso te ajudar a seguir com ele."
+            "Quis te chamar para ver se ficou alguma dúvida ou se posso te ajudar a seguir com ele."
         )
         corpo = (
-            f"OlÃƒÂ¡, tudo bem?\n\n"
-            f"Passando rapidinho para saber se conseguimos avanÃƒÂ§ar com o orÃƒÂ§amento {orcamento}{detalhe_valor}.\n\n"
+            f"Olá, tudo bem?\n\n"
+            f"Passando rapidinho para saber se conseguimos avançar com o orçamento {orcamento}{detalhe_valor}.\n\n"
             f"{urgencia}\n\n"
-            f"Se fizer sentido para vocÃƒÂª, posso revisar algum detalhe, ajustar quantidade ou ver uma condiÃƒÂ§ÃƒÂ£o para fecharmos.\n\n"
-            f"Posso dar sequÃƒÂªncia por aqui?\n\n"
-            f"AbraÃƒÂ§o,\n"
+            f"Se fizer sentido para você, posso revisar algum detalhe, ajustar quantidade ou ver uma condição para fecharmos.\n\n"
+            f"Posso dar sequência por aqui?\n\n"
+            f"Abraço,\n"
             f"{vendedor}\n"
             f"Novaprint"
         )
         return assunto, corpo
 
     if produto:
-        assunto = f"ReposiÃƒÂ§ÃƒÂ£o de {produto}"
+        assunto = f"Reposição de {produto}"
         ciclo = (
-            f"Vi aqui que vocÃƒÂªs costumam comprar {produto} a cada {int(intervalo_num)} dias"
+            f"Vi aqui que vocês costumam comprar {produto} a cada {int(intervalo_num)} dias"
             if intervalo_num > 0
-            else f"Vi aqui uma oportunidade para reposiÃƒÂ§ÃƒÂ£o de {produto}"
+            else f"Vi aqui uma oportunidade para reposição de {produto}"
         )
         tempo = (
-            f" e jÃƒÂ¡ faz {int(dias_num)} dias desde a ÃƒÂºltima compra."
+            f" e já faz {int(dias_num)} dias desde a última compra."
             if dias_num > 0
             else "."
         )
         corpo = (
-            f"OlÃƒÂ¡, tudo bem?\n\n"
+            f"Olá, tudo bem?\n\n"
             f"{ciclo}{tempo}\n\n"
-            f"Quer que eu jÃƒÂ¡ separe uma condiÃƒÂ§ÃƒÂ£o para reposiÃƒÂ§ÃƒÂ£o? "
-            f"Se quiser, tambÃƒÂ©m posso revisar a quantidade ideal para evitar falta ou compra maior que o necessÃƒÂ¡rio.\n\n"
+            f"Quer que eu já separe uma condição para reposição? "
+            f"Se quiser, também posso revisar a quantidade ideal para evitar falta ou compra maior que o necessário.\n\n"
             f"Posso te mandar uma proposta atualizada de {produto}?\n\n"
-            f"AbraÃƒÂ§o,\n"
+            f"Abraço,\n"
             f"{vendedor}\n"
             f"Novaprint"
         )
@@ -3203,12 +3233,12 @@ def texto_email_resumo(cliente, vendedor, oferta, row=None):
 
     assunto = f"Seguimos com essa demanda?"
     corpo = (
-        f"OlÃƒÂ¡, tudo bem?\n\n"
-        f"Passei para retomar com vocÃƒÂª esse ponto que ficou em aberto:\n\n"
+        f"Olá, tudo bem?\n\n"
+        f"Passei para retomar com você esse ponto que ficou em aberto:\n\n"
         f"{motivo}\n\n"
-        f"Se ainda fizer sentido, posso te ajudar a avanÃƒÂ§ar com isso hoje ou ajustar o que for necessÃƒÂ¡rio.\n\n"
+        f"Se ainda fizer sentido, posso te ajudar a avançar com isso hoje ou ajustar o que for necessário.\n\n"
         f"Como prefere seguir?\n\n"
-        f"AbraÃƒÂ§o,\n"
+        f"Abraço,\n"
         f"{vendedor}\n"
         f"Novaprint"
     )
@@ -3218,7 +3248,10 @@ def renderizar_email_resumo(cliente, vendedor, oferta, chave, row=None):
     with st.expander("Preparar e-mail"):
         conta_saida = conta_email_para_vendedor(vendedor)
         if conta_saida:
-            st.caption(f"SaÃƒÂ­da configurada: {conta_saida.get('name', conta_saida.get('email'))} <{conta_saida.get('email')}>")
+            st.caption(
+                f"Saída configurada: {conta_saida.get('name', conta_saida.get('email'))} "
+                f"<{conta_saida.get('email')}>"
+            )
         else:
             st.caption("Nenhuma caixa SMTP configurada. O CRM vai manter o rascunho por mailto.")
         destinatario = st.text_input(
@@ -3259,7 +3292,7 @@ def renderizar_email_resumo(cliente, vendedor, oferta, chave, row=None):
                         )
                         st.success(f"E-mail enviado por {origem}.")
                     except Exception as e:
-                        st.error(f"NÃƒÂ£o foi possÃƒÂ­vel enviar pelo CRM: {e}")
+                        st.error(f"Não foi possível enviar pelo CRM: {e}")
             link = (
                 "mailto:"
                 + urllib.parse.quote(destinatario.strip())
@@ -3275,39 +3308,39 @@ def renderizar_email_resumo(cliente, vendedor, oferta, chave, row=None):
 def texto_whatsapp_resumo(cliente, vendedor, oferta, row=None):
     row = row if row is not None else {}
     produto = str(row.get("Produto", "") or "").strip()
-    orcamento = str(row.get("OrÃƒÂ§amento", "") or "").strip()
-    valor = row.get("Valor", row.get("Ticket mÃƒÂ©dio", 0))
+    orcamento = str(row.get("Orçamento", "") or "").strip()
+    valor = row.get("Valor", row.get("Ticket médio", 0))
     dias = row.get("Dias sem comprar", row.get("Idade", ""))
     intervalo = row.get("Intervalo", "")
     valor_txt = fmt(valor) if valor else ""
 
     if orcamento:
         trecho_valor = f" ({valor_txt})" if valor_txt else ""
-        trecho_tempo = f" Vi que ele estÃƒÂ¡ hÃƒÂ¡ {dias} dias em aberto." if str(dias).strip() else ""
+        trecho_tempo = f" Vi que ele está há {dias} dias em aberto." if str(dias).strip() else ""
         return (
-            f"Oi, tudo bem? Aqui ÃƒÂ© {vendedor}, da Novaprint.\n\n"
-            f"Passando para ver se conseguimos avanÃƒÂ§ar com o orÃƒÂ§amento {orcamento}{trecho_valor}."
+            f"Oi, tudo bem? Aqui é {vendedor}, da Novaprint.\n\n"
+            f"Passando para ver se conseguimos avançar com o orçamento {orcamento}{trecho_valor}."
             f"{trecho_tempo}\n\n"
-            "Ficou alguma dÃƒÂºvida ou quer que eu ajuste alguma condiÃƒÂ§ÃƒÂ£o para fecharmos?"
+            "Ficou alguma dúvida ou quer que eu ajuste alguma condição para fecharmos?"
         )
 
     if produto:
         trecho_ciclo = (
-            f"Vi aqui que vocÃƒÂªs costumam comprar {produto} a cada {intervalo} dias. "
+            f"Vi aqui que vocês costumam comprar {produto} a cada {intervalo} dias. "
             if str(intervalo).strip() else
-            f"Vi aqui uma oportunidade de reposiÃƒÂ§ÃƒÂ£o de {produto}. "
+            f"Vi aqui uma oportunidade de reposição de {produto}. "
         )
-        trecho_tempo = f"JÃƒÂ¡ faz {dias} dias desde a ÃƒÂºltima compra. " if str(dias).strip() else ""
+        trecho_tempo = f"Já faz {dias} dias desde a última compra. " if str(dias).strip() else ""
         return (
-            f"Oi, tudo bem? Aqui ÃƒÂ© {vendedor}, da Novaprint.\n\n"
+            f"Oi, tudo bem? Aqui é {vendedor}, da Novaprint.\n\n"
             f"{trecho_ciclo}{trecho_tempo}"
-            f"Quer que eu prepare uma condiÃƒÂ§ÃƒÂ£o atualizada de {produto} para vocÃƒÂª?"
+            f"Quer que eu prepare uma condição atualizada de {produto} para você?"
         )
 
     return (
-        f"Oi, tudo bem? Aqui ÃƒÂ© {vendedor}, da Novaprint.\n\n"
+        f"Oi, tudo bem? Aqui é {vendedor}, da Novaprint.\n\n"
         f"Passando para retomar este ponto: {oferta}\n\n"
-        "Quer que eu te ajude a dar sequÃƒÂªncia?"
+        "Quer que eu te ajude a dar sequência?"
     )
 
 def renderizar_whatsapp_resumo(cliente, vendedor, oferta, chave, row=None):
@@ -3341,10 +3374,10 @@ def renderizar_whatsapp_resumo(cliente, vendedor, oferta, chave, row=None):
                         if resposta:
                             st.caption(resposta[:300])
                     except Exception as e:
-                        st.error(f"NÃƒÆ’Ã‚Â£o foi possÃƒÆ’Ã‚Â­vel enviar pelo Watidy: {e}")
+                        st.error(f"NÃ£o foi possÃ­vel enviar pelo Watidy: {e}")
                         st.markdown(f"[Abrir conversa no WhatsApp]({link})")
             else:
-                st.caption("Watidy nÃƒÆ’Ã‚Â£o configurado nos secrets. Usando rascunho manual.")
+                st.caption("Watidy nÃ£o configurado nos secrets. Usando rascunho manual.")
                 st.markdown(f"[Abrir conversa no WhatsApp]({link})")
         else:
             st.caption("Informe o WhatsApp do cliente para gerar a conversa.")
@@ -3354,7 +3387,7 @@ def renderizar_criar_orcamento_sugerido(row, chave):
     cliente_id = str(row.get("Cliente ID", row.get("_cliente_id", "")) or "").strip()
     if not produto or not cliente_id:
         return
-    with st.expander("Criar orÃƒÂ§amento"):
+    with st.expander("Criar orçamento"):
         valor_sugerido = float(row.get("_ultimo_valor_sugerido", 0) or 0)
         data_preco = row.get("_ultima_data_preco")
         qtd = st.number_input(
@@ -3371,18 +3404,18 @@ def renderizar_criar_orcamento_sugerido(row, chave):
             step=10.0,
             key=f"orc_sug_valor_{chave}",
         )
-        data_txt = data_preco.strftime("%d/%m/%Y") if pd.notna(data_preco) else "data nÃƒÂ£o identificada"
-        st.caption(f"PreÃƒÂ§o sugerido da ÃƒÂºltima venda em {data_txt}.")
+        data_txt = data_preco.strftime("%d/%m/%Y") if pd.notna(data_preco) else "data não identificada"
+        st.caption(f"Preço sugerido da última venda em {data_txt}.")
         codigo = st.text_input(
-            "NÃƒÂºmero do orÃƒÂ§amento (opcional)",
+            "Número do orçamento (opcional)",
             key=f"orc_sug_codigo_{chave}",
         )
         confirmado = st.checkbox(
-            "Revisei e autorizo criar este orÃƒÂ§amento no GestÃƒÂ£oClick.",
+            "Revisei e autorizo criar este orçamento no GestãoClick.",
             key=f"orc_sug_confirmar_{chave}",
         )
         if st.button(
-            "Criar orÃƒÂ§amento no GestÃƒÂ£oClick",
+            "Criar orçamento no GestãoClick",
             disabled=not confirmado,
             type="primary",
             use_container_width=True,
@@ -3394,7 +3427,7 @@ def renderizar_criar_orcamento_sugerido(row, chave):
                     "quantidade": qtd,
                     "valor": valor,
                     "data_preco": data_preco,
-                    "detalhes": f"PreÃƒÂ§o sugerido da ÃƒÂºltima venda em {data_txt}.",
+                    "detalhes": f"Preço sugerido da última venda em {data_txt}.",
                 }
                 criado = criar_orcamento_gestaoclick_api(
                     st.session_state.dados_processados,
@@ -3405,20 +3438,20 @@ def renderizar_criar_orcamento_sugerido(row, chave):
                     f"Criado pelo CRM Inteligente. Produto sugerido: {produto}.",
                 )
                 numero = criado.get("codigo") or criado.get("id")
-                st.success(f"OrÃƒÂ§amento {numero} criado no GestÃƒÂ£oClick.")
+                st.success(f"Orçamento {numero} criado no GestãoClick.")
             except Exception as e:
-                st.error(f"NÃƒÂ£o foi possÃƒÂ­vel criar o orÃƒÂ§amento: {e}")
+                st.error(f"Não foi possível criar o orçamento: {e}")
 
 def renderizar_card_resumo(row, indice, modo="prioridade"):
     cliente = str(row.get("Cliente", "Cliente sem nome"))
     vendedor = str(row.get("Vendedor", "Sem vendedor"))
     cliente_id = str(row.get("_cliente_id", row.get("Cliente ID", "")))
-    valor = row.get("Valor", row.get("Ticket mÃƒÂ©dio", 0))
+    valor = row.get("Valor", row.get("Ticket médio", 0))
     oferta = str(row.get("Oferta", row.get("Motivo", "")))
     categoria = str(row.get("Categoria", "Recompra")).strip()
     score = row.get("Score", "")
-    orcamento = str(row.get("OrÃƒÂ§amento", "") or "").strip()
-    acao = str(row.get("AÃƒÂ§ÃƒÂ£o", "") or "").strip()
+    orcamento = str(row.get("Orçamento", "") or "").strip()
+    acao = str(row.get("Ação", "") or "").strip()
     produto = str(row.get("Produto", "") or "").strip()
     dias = row.get("Dias sem comprar", row.get("Idade", ""))
     intervalo = row.get("Intervalo", "")
@@ -3429,15 +3462,15 @@ def renderizar_card_resumo(row, indice, modo="prioridade"):
     if produto:
         detalhes.append(f"Produto sugerido: <b>{html_seguro(produto)}</b>")
     if orcamento:
-        detalhes.append(f"OrÃƒÂ§amento: <b>{html_seguro(orcamento)}</b>")
+        detalhes.append(f"Orçamento: <b>{html_seguro(orcamento)}</b>")
     if dias != "":
-        detalhes.append(f"Dias em atenÃƒÂ§ÃƒÂ£o: <b>{html_seguro(dias)}</b>")
+        detalhes.append(f"Dias em atenção: <b>{html_seguro(dias)}</b>")
     if intervalo != "":
-        detalhes.append(f"Ciclo mÃƒÂ©dio: <b>{html_seguro(intervalo)} dias</b>")
+        detalhes.append(f"Ciclo médio: <b>{html_seguro(intervalo)} dias</b>")
     if score != "":
         detalhes.append(f"Score: <b>{html_seguro(score)}</b>")
     if acao:
-        detalhes.append(f"AÃƒÂ§ÃƒÂ£o sugerida: <b>{html_seguro(acao)}</b>")
+        detalhes.append(f"Ação sugerida: <b>{html_seguro(acao)}</b>")
     detalhes_html = "<br>".join(detalhes)
 
     st.markdown(
@@ -3448,7 +3481,7 @@ Vendedor: <b>{html_seguro(vendedor)}</b><br>
 Valor/ticket: <b>{fmt_html(valor)}</b><br>
 Tipo de prioridade: <b>{html_seguro(categoria)}</b><br>
 <br>
-<b>Por que estÃƒÂ¡ na fila?</b><br>
+<b>Por que está na fila?</b><br>
 {html_seguro(oferta)}<br>
 {detalhes_html}
 </div>
@@ -3463,7 +3496,7 @@ Tipo de prioridade: <b>{html_seguro(categoria)}</b><br>
 
 def renderizar_grid_resumo(df, modo):
     if df.empty:
-        st.info("Nenhum cliente encontrado para esta visÃƒÂ£o.")
+        st.info("Nenhum cliente encontrado para esta visão.")
         return
     linhas = list(df.head(30).iterrows())
     for i in range(0, len(linhas), 3):
@@ -3508,12 +3541,12 @@ def renderizar_busca_cliente_produtos(dados, vendedor="Todas"):
             st.session_state.clientes_api_cache = {}
         if cache_key not in st.session_state.clientes_api_cache:
             try:
-                with st.spinner("Buscando cliente no GestÃƒÂ£oClick..."):
+                with st.spinner("Buscando cliente no GestãoClick..."):
                     st.session_state.clientes_api_cache[cache_key] = api_gestaoclick().clients(
                         loja_id, termo.strip()
                     )
             except Exception as e:
-                st.warning(f"NÃƒÂ£o foi possÃƒÂ­vel buscar clientes na API: {e}")
+                st.warning(f"Não foi possível buscar clientes na API: {e}")
                 st.session_state.clientes_api_cache[cache_key] = []
         encontrados_api = st.session_state.clientes_api_cache.get(cache_key, [])
 
@@ -3532,12 +3565,12 @@ def renderizar_busca_cliente_produtos(dados, vendedor="Todas"):
                 "Cliente": nome,
                 "Cliente ID": cliente_id,
                 "Documento": documento_cliente_registro(item),
-                "Vendedor": item.get("nome_vendedor") or "GestÃƒÂ£oClick",
+                "Vendedor": item.get("nome_vendedor") or "GestãoClick",
                 "intervalo": 0,
                 "dias_sem_comprar": 0,
                 "itens_comprados": [],
                 "itens_orcados": [],
-                "_origem_busca": "API GestÃƒÂ£oClick",
+                "_origem_busca": "API GestãoClick",
             })
         clientes_api_df = pd.DataFrame(linhas_api)
         if not encontrados.empty:
@@ -3552,7 +3585,7 @@ def renderizar_busca_cliente_produtos(dados, vendedor="Todas"):
         return
 
     st.caption(
-        "A busca considera a base carregada do CRM e consulta o GestÃƒÂ£oClick pela API quando conectado."
+        "A busca considera a base carregada do CRM e consulta o GestãoClick pela API quando conectado."
     )
     encontrados = encontrados.head(18)
     for i in range(0, len(encontrados), 3):
@@ -3573,16 +3606,16 @@ Dias sem comprar: <b>{int(r.get('dias_sem_comprar', 0) or 0)}</b>
 """,
                     unsafe_allow_html=True,
                 )
-                with st.expander("Produtos comprados e orÃƒÂ§ados"):
+                with st.expander("Produtos comprados e orçados"):
                     renderizar_lista_itens("Itens comprados", r.get("itens_comprados", []))
-                    renderizar_lista_itens("Itens orÃƒÂ§ados", r.get("itens_orcados", []))
+                    renderizar_lista_itens("Itens orçados", r.get("itens_orcados", []))
 
 def renderizar_geracao_orcamentos():
-    st.subheader("GeraÃƒÂ§ÃƒÂ£o de OrÃƒÂ§amentos")
-    st.caption("Crie orÃƒÂ§amentos no GestÃƒÂ£oClick usando o formato: Nome do produto; quantidade.")
+    st.subheader("Geração de Orçamentos")
+    st.caption("Crie orçamentos no GestãoClick usando o formato: Nome do produto; quantidade.")
     dados = st.session_state.dados_processados or {}
     if dados.get("origem") != "api" or not dados.get("loja_id"):
-        st.info("Atualize os dados pela API do GestÃƒÂ£oClick antes de criar orÃƒÂ§amentos.")
+        st.info("Atualize os dados pela API do GestãoClick antes de criar orçamentos.")
         return
 
     loja_id = dados.get("loja_id")
@@ -3609,12 +3642,12 @@ def renderizar_geracao_orcamentos():
             st.session_state.clientes_api_cache = {}
         if cache_key not in st.session_state.clientes_api_cache:
             try:
-                with st.spinner("Buscando cliente no GestÃƒÂ£oClick..."):
+                with st.spinner("Buscando cliente no GestãoClick..."):
                     st.session_state.clientes_api_cache[cache_key] = api_gestaoclick().clients(
                         loja_id, termo_cliente.strip()
                     )
             except Exception as e:
-                st.warning(f"NÃƒÂ£o foi possÃƒÂ­vel buscar clientes na API: {e}")
+                st.warning(f"Não foi possível buscar clientes na API: {e}")
                 st.session_state.clientes_api_cache[cache_key] = []
         clientes_api = st.session_state.clientes_api_cache.get(cache_key, [])
         if not clientes_api:
@@ -3675,13 +3708,13 @@ def renderizar_geracao_orcamentos():
         except Exception as e:
             st.error(str(e))
 
-    codigo = st.text_input("NÃƒÂºmero do orÃƒÂ§amento (opcional)", key="gerar_orc_codigo")
+    codigo = st.text_input("Número do orçamento (opcional)", key="gerar_orc_codigo")
     confirmado = st.checkbox(
-        "Revisei cliente, vendedor e produtos. Autorizo criar o orÃƒÂ§amento no GestÃƒÂ£oClick.",
+        "Revisei cliente, vendedor e produtos. Autorizo criar o orçamento no GestãoClick.",
         key="gerar_orc_confirmar",
     )
     if st.button(
-        "Criar orÃƒÂ§amento no GestÃƒÂ£oClick",
+        "Criar orçamento no GestãoClick",
         type="primary",
         disabled=not confirmado,
         key="gerar_orc_criar",
@@ -3702,12 +3735,12 @@ def renderizar_geracao_orcamentos():
                     valor, data_preco = ultimo_preco_produto_cliente(
                         dados, cliente_id, item["produto"]
                     )
-                data_txt = data_preco.strftime("%d/%m/%Y") if pd.notna(data_preco) else "data nÃƒÂ£o identificada"
+                data_txt = data_preco.strftime("%d/%m/%Y") if pd.notna(data_preco) else "data não identificada"
                 itens_final.append({
                     **item,
                     "valor": valor,
                     "data_preco": data_preco,
-                    "detalhes": f"PreÃƒÂ§o sugerido da ÃƒÂºltima venda em {data_txt}.",
+                    "detalhes": f"Preço sugerido da última venda em {data_txt}.",
                 })
             criado = criar_orcamento_gestaoclick_api(
                 dados,
@@ -3715,20 +3748,20 @@ def renderizar_geracao_orcamentos():
                 vendedor.get("id") or "",
                 itens_final,
                 codigo.strip() or None,
-                "Criado pelo mÃƒÂ³dulo GeraÃƒÂ§ÃƒÂ£o de OrÃƒÂ§amentos do CRM Inteligente.",
+                "Criado pelo módulo Geração de Orçamentos do CRM Inteligente.",
             )
             numero = criado.get("codigo") or criado.get("id")
-            st.success(f"OrÃƒÂ§amento {numero} criado no GestÃƒÂ£oClick.")
+            st.success(f"Orçamento {numero} criado no GestãoClick.")
         except Exception as e:
-            st.error(f"NÃƒÂ£o foi possÃƒÂ­vel criar o orÃƒÂ§amento: {e}")
+            st.error(f"Não foi possível criar o orçamento: {e}")
 
 def renderizar_resumo_diario(dados):
-    st.subheader("Resumo DiÃƒÂ¡rio")
-    st.caption("GestÃƒÂ£o diÃƒÂ¡ria dos orÃƒÂ§amentos, ofertas de recompra e prioridades das vendedoras.")
+    st.subheader("Resumo Diário")
+    st.caption("Gestão diária dos orçamentos, ofertas de recompra e prioridades das vendedoras.")
     orcamentos = dados.get("orcamentos_todos", pd.DataFrame())
     clientes = dados.get("clientes", pd.DataFrame())
     if orcamentos.empty and clientes.empty:
-        st.info("Carregue os dados da API para montar o resumo diÃƒÂ¡rio.")
+        st.info("Carregue os dados da API para montar o resumo diário.")
         return
 
     base_vendedores = orcamentos if not orcamentos.empty else clientes
@@ -3745,21 +3778,21 @@ def renderizar_resumo_diario(dados):
     ofertas = montar_ofertas_recompra(dados, vendedor)
 
     cols = st.columns(5)
-    cols[0].metric("LigaÃƒÂ§ÃƒÂµes hoje", counters["calls"] + len(ofertas))
+    cols[0].metric("Ligações hoje", counters["calls"] + len(ofertas))
     cols[1].metric("Oportunidades quentes", counters["hot"])
     cols[2].metric("Retornos hoje", counters["returns"])
     cols[3].metric("Sem contato", counters["untouched"])
     cols[4].metric("Vencendo", counters["expiring"])
 
     if "resumo_diario_secao" not in st.session_state:
-        st.session_state.resumo_diario_secao = "InÃƒÂ­cio"
+        st.session_state.resumo_diario_secao = "Início"
 
     secao = st.session_state.resumo_diario_secao
 
-    if secao == "InÃƒÂ­cio":
+    if secao == "Início":
         st.markdown("#### Ofertas de recompra para hoje")
         st.caption(
-            "Essas ofertas vÃƒÂªm do ciclo real de compra do cliente e aparecem jÃƒÂ¡ na entrada do Resumo DiÃƒÂ¡rio."
+            "Essas ofertas vêm do ciclo real de compra do cliente e aparecem já na entrada do Resumo Diário."
         )
         renderizar_grid_resumo(ofertas, "inicio_oferta")
 
@@ -3781,7 +3814,7 @@ def renderizar_resumo_diario(dados):
     if secao == "Ofertas de recompra":
         st.markdown("#### Ofertas de recompra")
         st.caption(
-            "SugestÃƒÂµes geradas a partir do ciclo real de compra: produto, intervalo e dias sem comprar."
+            "Sugestões geradas a partir do ciclo real de compra: produto, intervalo e dias sem comprar."
         )
         renderizar_grid_resumo(ofertas, "oferta")
 
@@ -3789,8 +3822,8 @@ def renderizar_resumo_diario(dados):
         st.markdown("#### Buscar cliente e produtos")
         renderizar_busca_cliente_produtos(dados, vendedor)
 
-    if secao == "AÃƒÂ§ÃƒÂµes rÃƒÂ¡pidas":
-        st.markdown("#### AÃƒÂ§ÃƒÂµes rÃƒÂ¡pidas")
+    if secao == "Ações rápidas":
+        st.markdown("#### Ações rápidas")
         combinada = pd.concat(
             [oportunidades.head(15), ofertas.head(15)],
             ignore_index=True,
@@ -3798,19 +3831,19 @@ def renderizar_resumo_diario(dados):
         )
         renderizar_grid_resumo(combinada, "acoes")
 
-    if secao == "VisÃƒÂ£o de gestÃƒÂ£o":
+    if secao == "Visão de gestão":
         st.markdown("#### Desempenho por vendedor")
         if oportunidades.empty and ofertas.empty:
-            st.info("Nenhuma prioridade encontrada para gestÃƒÂ£o.")
+            st.info("Nenhuma prioridade encontrada para gestão.")
             return
         if oportunidades.empty:
             gestao = pd.DataFrame(columns=[
-                "Vendedor", "Prioridades", "Ligacoes", "Quentes", "Retornos", "Valor"
+                "Vendedor", "Prioridades", "Ligações", "Quentes", "Retornos", "Valor"
             ])
         else:
             gestao = oportunidades.groupby("Vendedor").agg(
                 Prioridades=("Cliente", "count"),
-                Ligacoes=("Categoria", lambda s: int(s.isin(["RETORNO", "SEM CONTATO", "VENCENDO"]).sum())),
+                Ligações=("Categoria", lambda s: int(s.isin(["RETORNO", "SEM CONTATO", "VENCENDO"]).sum())),
                 Quentes=("_oportunidade_quente", "sum"),
                 Retornos=("Categoria", lambda s: int((s == "RETORNO").sum())),
                 Valor=("Valor", "sum"),
@@ -3818,7 +3851,7 @@ def renderizar_resumo_diario(dados):
         if not ofertas.empty:
             ofertas_gestao = ofertas.groupby("Vendedor").agg(
                 Ofertas=("Cliente", "count"),
-                Ticket=("Ticket mÃƒÂ©dio", "sum"),
+                Ticket=("Ticket médio", "sum"),
             ).reset_index()
             gestao = gestao.merge(ofertas_gestao, on="Vendedor", how="outer").fillna(0)
         if "Ofertas" not in gestao.columns:
@@ -3836,11 +3869,11 @@ def renderizar_resumo_diario(dados):
         )
     return
 
-    st.subheader("Resumo DiÃƒÂ¡rio")
-    st.caption("GestÃƒÂ£o diÃƒÂ¡ria dos orÃƒÂ§amentos e prioridades das vendedoras.")
+    st.subheader("Resumo Diário")
+    st.caption("Gestão diária dos orçamentos e prioridades das vendedoras.")
     orcamentos = dados.get("orcamentos_todos", pd.DataFrame())
     if orcamentos.empty:
-        st.info("Carregue os dados da API para montar o resumo diÃƒÂ¡rio.")
+        st.info("Carregue os dados da API para montar o resumo diário.")
         return
     vendedor_col = achar_coluna(orcamentos, ["vendedor"])
     vendedores = ["Todas"]
@@ -3852,14 +3885,14 @@ def renderizar_resumo_diario(dados):
     col_filtro, col_visao = st.columns(2)
     vendedor = col_filtro.selectbox("Vendedor", vendedores, key="resumo_diario_vendedor")
     visao = col_visao.radio(
-        "VisÃƒÂ£o",
-        ["VisÃƒÂ£o do vendedor", "VisÃƒÂ£o de gestÃƒÂ£o"],
+        "Visão",
+        ["Visão do vendedor", "Visão de gestão"],
         horizontal=True,
         key="resumo_diario_visao"
     )
     oportunidades, counters = montar_resumo_diario_oportunidades(dados, vendedor)
     cols = st.columns(5)
-    cols[0].metric("LigaÃƒÂ§ÃƒÂµes hoje", counters["calls"])
+    cols[0].metric("Ligações hoje", counters["calls"])
     cols[1].metric("Oportunidades quentes", counters["hot"])
     cols[2].metric("Retornos hoje", counters["returns"])
     cols[3].metric("Sem contato", counters["untouched"])
@@ -3881,7 +3914,7 @@ def renderizar_resumo_diario(dados):
     elif filtro == "Retornos hoje":
         exibicao = exibicao[exibicao["Categoria"] == "RETORNO"]
 
-    if visao == "VisÃƒÂ£o de gestÃƒÂ£o":
+    if visao == "Visão de gestão":
         st.markdown("#### Desempenho por vendedor")
         gestao = oportunidades.groupby("Vendedor").agg(
             Prioridades=("Cliente", "count"),
@@ -3894,15 +3927,15 @@ def renderizar_resumo_diario(dados):
         st.dataframe(gestao, use_container_width=True, hide_index=True)
 
     tabela = exibicao[[
-        "Categoria", "Score", "Cliente", "Vendedor", "OrÃƒÂ§amento",
-        "Valor", "ÃƒÅ¡ltimo contato", "Motivo", "AÃƒÂ§ÃƒÂ£o"
+        "Categoria", "Score", "Cliente", "Vendedor", "Orçamento",
+        "Valor", "Último contato", "Motivo", "Ação"
     ]].copy()
     tabela["Valor"] = tabela["Valor"].map(fmt)
     st.markdown("#### Fila de prioridades")
     st.dataframe(tabela, use_container_width=True, hide_index=True)
 
-    st.markdown("#### AÃƒÂ§ÃƒÂµes rÃƒÂ¡pidas")
-    st.caption("Use os cartÃƒÂµes abaixo para registrar contato ou programar retorno sem sair do Resumo DiÃƒÂ¡rio.")
+    st.markdown("#### Ações rápidas")
+    st.caption("Use os cartões abaixo para registrar contato ou programar retorno sem sair do Resumo Diário.")
     for indice, row in exibicao.head(30).iterrows():
         cliente = str(row.get("Cliente", "Cliente sem nome"))
         vendedor_card = str(row.get("Vendedor", "Sem vendedor"))
@@ -3914,9 +3947,9 @@ def renderizar_resumo_diario(dados):
             f"{row.get('Categoria', 'PRIORIDADE')} | {cliente} | {fmt(row.get('Valor', 0))}"
         ):
             st.write(f"**Vendedor:** {vendedor_card}")
-            st.write(f"**OrÃƒÂ§amento:** {row.get('OrÃƒÂ§amento', '')}")
+            st.write(f"**Orçamento:** {row.get('Orçamento', '')}")
             st.write(f"**Motivo:** {row.get('Motivo', '')}")
-            st.write(f"**AÃƒÂ§ÃƒÂ£o sugerida:** {row.get('AÃƒÂ§ÃƒÂ£o', '')}")
+            st.write(f"**Ação sugerida:** {row.get('Ação', '')}")
 
             historico_contatos = [
                 c for c in st.session_state.contatos_realizados
@@ -3927,7 +3960,7 @@ def renderizar_resumo_diario(dados):
                 if cliente_corresponde(r, cliente_id, cliente)
             ][-3:]
             if historico_contatos or historico_retornos:
-                with st.expander("Ver histÃƒÂ³rico curto"):
+                with st.expander("Ver histórico curto"):
                     for contato in historico_contatos:
                         st.write(
                             f"{contato.get('data', '')} {contato.get('hora', '')} - "
@@ -3940,12 +3973,12 @@ def renderizar_resumo_diario(dados):
                         )
 
             observacao = st.text_input(
-                "ObservaÃƒÂ§ÃƒÂ£o do contato",
+                "Observação do contato",
                 key=f"resumo_diario_obs_{chave}"
             )
             col_ligar, col_retorno = st.columns(2)
             if col_ligar.button(
-                "JÃƒÂ¡ Liguei",
+                "Já Liguei",
                 key=f"resumo_diario_liguei_{chave}",
                 type="primary",
                 use_container_width=True,
@@ -3957,7 +3990,7 @@ def renderizar_resumo_diario(dados):
                     st.success("Contato registrado. Esse cliente sai das prioridades de hoje.")
                     st.rerun()
                 except Exception as e:
-                    st.error(f"NÃƒÂ£o foi possÃƒÂ­vel registrar o contato: {e}")
+                    st.error(f"Não foi possível registrar o contato: {e}")
 
             with col_retorno:
                 data_retorno = st.date_input(
@@ -3972,7 +4005,7 @@ def renderizar_resumo_diario(dados):
                     key=f"resumo_diario_motivo_{chave}"
                 )
                 observacao_retorno = st.text_area(
-                    "ObservaÃƒÂ§ÃƒÂ£o do retorno",
+                    "Observação do retorno",
                     key=f"resumo_diario_obs_retorno_{chave}"
                 )
                 if st.button(
@@ -3992,15 +4025,11 @@ def renderizar_resumo_diario(dados):
                         st.success(f"Retorno agendado para {data_retorno:%d/%m/%Y}.")
                         st.rerun()
                     except Exception as e:
-                        if erro_apenas_response_200(e):
-                            st.success(f"Retorno agendado para {data_retorno:%d/%m/%Y}.")
-                            st.rerun()
-                        else:
-                            st.error(f"NÃƒÂ£o foi possÃƒÂ­vel agendar o retorno: {e}")
+                        st.error(f"Não foi possível agendar o retorno: {e}")
 
 def card_cliente(row, tipo, posicao):
     atraso = int(row["dias_sem_comprar"] - row["intervalo"])
-    estrela = "Ã¢Â­Â Cliente estratÃƒÂ©gico<br>" if row["cliente_estrategico"] else ""
+    estrela = "⭐ Cliente estratégico<br>" if row["cliente_estrategico"] else ""
     cliente_html = html_seguro(row["Cliente"])
     temperatura_html = html_seguro(row["temperatura"])
     risco_html = html_seguro(row["risco_inadimplencia"])
@@ -4015,17 +4044,17 @@ def card_cliente(row, tipo, posicao):
 Temperatura: <b>{temperatura_html}</b><br>
 Score comercial: <b>{int(row['score_comercial'])}/100</b><br><br>
 Compra a cada <b>{int(row['intervalo'])} dias</b><br>
-EstÃƒÂ¡ hÃƒÂ¡ <b>{int(row['dias_sem_comprar'])} dias</b> sem comprar<br>
-JÃƒÂ¡ era para ter comprado hÃƒÂ¡ <b>{max(atraso, 0)} dias</b><br><br>
-Ticket mÃƒÂ©dio: <b>{fmt_html(row['ticket_medio'])}</b><br>
+Está há <b>{int(row['dias_sem_comprar'])} dias</b> sem comprar<br>
+Já era para ter comprado há <b>{max(atraso, 0)} dias</b><br><br>
+Ticket médio: <b>{fmt_html(row['ticket_medio'])}</b><br>
 Potencial mensal: <b>{fmt_html(row['potencial_mensal'])}</b><br>
-Potencial recuperÃƒÂ¡vel: <b>{fmt_html(row['potencial_recuperavel'])}</b><br>
-OrÃƒÂ§amentos em aberto: <b>{int(row['orcamentos_em_aberto'])}</b><br>
-Vendedor responsÃƒÂ¡vel: <b>{vendedor_html}</b><br>
-InadimplÃƒÂªncia: <b>{fmt_html(row['inadimplencia'])}</b><br>
-Score de risco: <b>{int(row['score_risco'])}/100 Ã¢â‚¬â€ {risco_html}</b><br><br>
+Potencial recuperável: <b>{fmt_html(row['potencial_recuperavel'])}</b><br>
+Orçamentos em aberto: <b>{int(row['orcamentos_em_aberto'])}</b><br>
+Vendedor responsável: <b>{vendedor_html}</b><br>
+Inadimplência: <b>{fmt_html(row['inadimplencia'])}</b><br>
+Score de risco: <b>{int(row['score_risco'])}/100 — {risco_html}</b><br><br>
 Prioridade de hoje: <b>{motivo_html or 'Acompanhamento comercial'}</b><br>
-RecomendaÃƒÂ§ÃƒÂ£o: <b>{acao_html}</b>
+Recomendação: <b>{acao_html}</b>
 </div>
 """, unsafe_allow_html=True)
 
@@ -4033,15 +4062,15 @@ RecomendaÃƒÂ§ÃƒÂ£o: <b>{acao_html}</b>
     chave_base = f"{tipo}_{cliente_uid}_{chave_widget(posicao)}"
     sufixo_uid = cliente_uid[-6:]
 
-    with st.expander(f"Ver HistÃƒÂ³rico - {row['Cliente']} #{sufixo_uid}"):
+    with st.expander(f"Ver Histórico - {row['Cliente']} #{sufixo_uid}"):
         renderizar_historico_cliente(row)
 
     observacao_contato = st.text_input(
-        "ObservaÃƒÂ§ÃƒÂ£o do contato (opcional)",
+        "Observação do contato (opcional)",
         key=f"obs_contato_{chave_base}"
     )
     if st.button(
-        f"JÃƒÂ¡ Liguei - {row['Cliente']}",
+        f"Já Liguei - {row['Cliente']}",
         key=f"liguei_{chave_base}",
         type="primary"
     ):
@@ -4057,7 +4086,7 @@ RecomendaÃƒÂ§ÃƒÂ£o: <b>{acao_html}</b>
             st.success("Contato registrado. O cliente saiu das prioridades de hoje.")
             st.rerun()
         except Exception as e:
-            st.error(f"NÃƒÂ£o foi possÃƒÂ­vel registrar o contato: {e}")
+            st.error(f"Não foi possível registrar o contato: {e}")
 
     with st.expander(f"Agendar Retorno - {row['Cliente']} #{sufixo_uid}"):
         data_retorno = st.date_input(
@@ -4072,7 +4101,7 @@ RecomendaÃƒÂ§ÃƒÂ£o: <b>{acao_html}</b>
             key=f"motivo_retorno_{chave_base}"
         )
         observacao_retorno = st.text_area(
-            "ObservaÃƒÂ§ÃƒÂ£o",
+            "Observação",
             key=f"obs_retorno_{chave_base}"
         )
         if st.button(
@@ -4091,11 +4120,7 @@ RecomendaÃƒÂ§ÃƒÂ£o: <b>{acao_html}</b>
                 st.success(f"Retorno agendado para {data_retorno:%d/%m/%Y}.")
                 st.rerun()
             except Exception as e:
-                if erro_apenas_response_200(e):
-                    st.success(f"Retorno agendado para {data_retorno:%d/%m/%Y}.")
-                    st.rerun()
-                else:
-                    st.error(f"NÃƒÂ£o foi possÃƒÂ­vel agendar o retorno: {e}")
+                st.error(f"Não foi possível agendar o retorno: {e}")
 
 def gerar_texto_email(
     prioridade, orc_aberto, clientes, clientes_churn,
@@ -4114,34 +4139,34 @@ def gerar_texto_email(
     )
 
     linhas = [
-        f"RESUMO COMERCIAL DIÃƒÂRIO - {hoje_txt}",
-        f"PerÃƒÂ­odo das vendas analisadas: {periodo}",
+        f"RESUMO COMERCIAL DIÁRIO - {hoje_txt}",
+        f"Período das vendas analisadas: {periodo}",
         "",
-        "VISÃƒÆ’O EXECUTIVA",
-        f"- Faturamento histÃƒÂ³rico importado: {fmt(clientes['faturamento'].sum())}",
+        "VISÃO EXECUTIVA",
+        f"- Faturamento histórico importado: {fmt(clientes['faturamento'].sum())}",
         f"- Potencial mensal da carteira: {fmt(clientes['potencial_mensal'].sum())}",
         f"- Capacidade estimada das prioridades de hoje: {fmt(prioridade['ticket_medio'].sum())}",
-        f"- Potencial recuperÃƒÂ¡vel: {fmt(clientes['potencial_recuperavel'].sum())}",
-        f"- InadimplÃƒÂªncia identificada: {fmt(clientes['inadimplencia'].sum())}",
+        f"- Potencial recuperável: {fmt(clientes['potencial_recuperavel'].sum())}",
+        f"- Inadimplência identificada: {fmt(clientes['inadimplencia'].sum())}",
         f"- Churn estimado: {taxa_churn:.1f}% ({qtd_churn} de {base_churn} clientes com ciclo conhecido)",
         "",
         "FINANCEIRO",
         f"- Carteira a receber: {fmt(metricas_fin['total_aberto'])}",
         f"- Total vencido: {fmt(metricas_fin['total_vencido'])} ({metricas_fin['percentual_vencido']:.1f}%)",
-        f"- Entradas previstas em atÃƒÂ© 7 dias: {fmt(metricas_fin['vence_7'])}",
+        f"- Entradas previstas em até 7 dias: {fmt(metricas_fin['vence_7'])}",
         f"- Entradas previstas de 8 a 15 dias: {fmt(metricas_fin['vence_15'])}",
         f"- Entradas previstas de 16 a 30 dias: {fmt(metricas_fin['vence_30'])}",
-        f"- ConcentraÃƒÂ§ÃƒÂ£o nos 5 maiores clientes: {metricas_fin['concentracao_top5']:.1f}%",
+        f"- Concentração nos 5 maiores clientes: {metricas_fin['concentracao_top5']:.1f}%",
         f"- Contas a pagar: {fmt(metricas_fin['total_pagar'])}",
         f"- Saldo total projetado: {fmt(metricas_fin['saldo_carteira'])}",
         f"- Sobra projetada em 30 dias: {fmt(metricas_fin['saldo_30_dias'])}",
-        f"- Resultado financeiro do mÃƒÂªs: {fmt(metricas_fin['resultado_mes'])}",
+        f"- Resultado financeiro do mês: {fmt(metricas_fin['resultado_mes'])}",
         "",
         "CARTEIRA",
-        f"- Quentes: {int(temperaturas.get('Ã°Å¸Å¸Â¢ QUENTE', 0))}",
-        f"- Em atenÃƒÂ§ÃƒÂ£o: {int(temperaturas.get('Ã°Å¸Å¸Â¡ ATENÃƒâ€¡ÃƒÆ’O', 0))}",
-        f"- Atrasados na recompra: {int(temperaturas.get('Ã°Å¸â€Â´ ATRASADO NA RECOMPRA', 0))}",
-        f"- Inativos: {int(temperaturas.get('Ã¢Å¡Â« CLIENTE INATIVO', 0))}",
+        f"- Quentes: {int(temperaturas.get('🟢 QUENTE', 0))}",
+        f"- Em atenção: {int(temperaturas.get('🟡 ATENÇÃO', 0))}",
+        f"- Atrasados na recompra: {int(temperaturas.get('🔴 ATRASADO NA RECOMPRA', 0))}",
+        f"- Inativos: {int(temperaturas.get('⚫ CLIENTE INATIVO', 0))}",
         "",
         f"PRIORIDADES DE HOJE ({len(prioridade)})"
     ]
@@ -4155,17 +4180,17 @@ def gerar_texto_email(
                 f"Potencial {fmt(r['potencial_mensal'])} | {r['acao_ia']}"
             )
 
-    linhas.extend(["", f"ORÃƒâ€¡AMENTOS URGENTES ({len(orc_urgentes)})"])
+    linhas.extend(["", f"ORÇAMENTOS URGENTES ({len(orc_urgentes)})"])
     if orc_urgentes.empty:
-        linhas.append("- Nenhum orÃƒÂ§amento com dois dias ou mais sem retorno.")
+        linhas.append("- Nenhum orçamento com dois dias ou mais sem retorno.")
     else:
         for i, (_, r) in enumerate(orc_urgentes.head(10).iterrows(), 1):
-            valor = fmt(r[co_valor]) if co_valor else "valor nÃƒÂ£o informado"
+            valor = fmt(r[co_valor]) if co_valor else "valor não informado"
             linhas.append(
-                f"{i}. NÃ‚Âº {r[co_num]} | {r[co_cli]} | {int(r['dias_no_sistema'])} dias | {valor}"
+                f"{i}. Nº {r[co_num]} | {r[co_cli]} | {int(r['dias_no_sistema'])} dias | {valor}"
             )
 
-    linhas.extend(["", f"CHURN PARA RECUPERAÃƒâ€¡ÃƒÆ’O ({len(clientes_churn)})"])
+    linhas.extend(["", f"CHURN PARA RECUPERAÇÃO ({len(clientes_churn)})"])
     if clientes_churn.empty:
         linhas.append("- Nenhum cliente classificado em churn.")
     else:
@@ -4178,12 +4203,12 @@ def gerar_texto_email(
     linhas.extend([
         "",
         "PLANO DO DIA",
-        f"- Realizar {len(prioridade)} contatos prioritÃƒÂ¡rios.",
-        f"- Retornar {len(orc_urgentes)} orÃƒÂ§amentos urgentes.",
-        f"- Iniciar recuperaÃƒÂ§ÃƒÂ£o dos {min(len(clientes_churn), 10)} clientes de churn com maior potencial.",
-        "- Tratar inadimplÃƒÂªncia antes de oferecer nova venda aos clientes com pendÃƒÂªncias.",
+        f"- Realizar {len(prioridade)} contatos prioritários.",
+        f"- Retornar {len(orc_urgentes)} orçamentos urgentes.",
+        f"- Iniciar recuperação dos {min(len(clientes_churn), 10)} clientes de churn com maior potencial.",
+        "- Tratar inadimplência antes de oferecer nova venda aos clientes com pendências.",
         "",
-        "ObservaÃƒÂ§ÃƒÂ£o: capacidade estimada nÃƒÂ£o ÃƒÂ© previsÃƒÂ£o garantida; representa a soma dos tickets mÃƒÂ©dios das prioridades."
+        "Observação: capacidade estimada não é previsão garantida; representa a soma dos tickets médios das prioridades."
     ])
     return "\n".join(linhas)
 
@@ -4212,7 +4237,7 @@ def gerar_pdf(
         leftMargin=15 * mm,
         topMargin=15 * mm,
         bottomMargin=16 * mm,
-        title="RelatÃƒÂ³rio Comercial Executivo"
+        title="Relatório Comercial Executivo"
     )
     styles = getSampleStyleSheet()
     styles.add(ParagraphStyle(
@@ -4260,7 +4285,7 @@ def gerar_pdf(
         ]))
         return tabela_pdf
 
-    elementos.append(Paragraph("RELATÃƒâ€œRIO COMERCIAL EXECUTIVO", styles["TituloCEO"]))
+    elementos.append(Paragraph("RELATÓRIO COMERCIAL EXECUTIVO", styles["TituloCEO"]))
     elementos.append(Paragraph(
         f"Emitido em {datetime.now():%d/%m/%Y} | Vendas analisadas: {periodo}",
         styles["Normal"]
@@ -4269,16 +4294,16 @@ def gerar_pdf(
 
     indicadores = [
         [p("Indicador"), p("Resultado"), p("Leitura")],
-        [p("Faturamento histÃƒÂ³rico"), p(fmt(clientes["faturamento"].sum())), p("Total existente no arquivo importado.")],
-        [p("Potencial mensal"), p(fmt(clientes["potencial_mensal"].sum())), p("MÃƒÂ©dia mensal das compras dos ÃƒÂºltimos trÃƒÂªs meses.")],
-        [p("Capacidade das prioridades"), p(fmt(prioridade["ticket_medio"].sum())), p("Soma dos tickets mÃƒÂ©dios; nÃƒÂ£o ÃƒÂ© previsÃƒÂ£o garantida.")],
-        [p("Potencial recuperÃƒÂ¡vel"), p(fmt(clientes["potencial_recuperavel"].sum())), p("Potencial de atrasados e inativos.")],
-        [p("InadimplÃƒÂªncia"), p(fmt(clientes["inadimplencia"].sum())), p("PendÃƒÂªncias identificadas no contas a receber.")],
+        [p("Faturamento histórico"), p(fmt(clientes["faturamento"].sum())), p("Total existente no arquivo importado.")],
+        [p("Potencial mensal"), p(fmt(clientes["potencial_mensal"].sum())), p("Média mensal das compras dos últimos três meses.")],
+        [p("Capacidade das prioridades"), p(fmt(prioridade["ticket_medio"].sum())), p("Soma dos tickets médios; não é previsão garantida.")],
+        [p("Potencial recuperável"), p(fmt(clientes["potencial_recuperavel"].sum())), p("Potencial de atrasados e inativos.")],
+        [p("Inadimplência"), p(fmt(clientes["inadimplencia"].sum())), p("Pendências identificadas no contas a receber.")],
         [p("Carteira a receber"), p(fmt(metricas_fin["total_aberto"])), p("Total de recebimentos ainda em aberto.")],
-        [p("Percentual vencido"), p(f"{metricas_fin['percentual_vencido']:.1f}%"), p("ParticipaÃƒÂ§ÃƒÂ£o dos tÃƒÂ­tulos vencidos na carteira aberta.")],
-        [p("Receber em atÃƒÂ© 7 dias"), p(fmt(metricas_fin["vence_7"])), p("Entradas previstas no curto prazo.")],
-        [p("Contas a pagar"), p(fmt(metricas_fin["total_pagar"])), p("ObrigaÃƒÂ§ÃƒÂµes ainda em aberto.")],
-        [p("Sobra em 30 dias"), p(fmt(metricas_fin["saldo_30_dias"])), p("Entradas previstas menos saÃƒÂ­das previstas.")],
+        [p("Percentual vencido"), p(f"{metricas_fin['percentual_vencido']:.1f}%"), p("Participação dos títulos vencidos na carteira aberta.")],
+        [p("Receber em até 7 dias"), p(fmt(metricas_fin["vence_7"])), p("Entradas previstas no curto prazo.")],
+        [p("Contas a pagar"), p(fmt(metricas_fin["total_pagar"])), p("Obrigações ainda em aberto.")],
+        [p("Sobra em 30 dias"), p(fmt(metricas_fin["saldo_30_dias"])), p("Entradas previstas menos saídas previstas.")],
         [p("Resultado financeiro mensal"), p(fmt(metricas_fin["resultado_mes"])), p("Recebimentos liquidados menos pagamentos liquidados.")],
         [p("Churn estimado"), p(f"{taxa_churn:.1f}%"), p(f"{qtd_churn} de {base_churn} clientes com ciclo conhecido.")],
     ]
@@ -4287,18 +4312,18 @@ def gerar_pdf(
 
     temperaturas = clientes["temperatura"].value_counts()
     carteira = [
-        [p("SituaÃƒÂ§ÃƒÂ£o"), p("Clientes")],
-        [p("Quentes"), p(int(temperaturas.get("Ã°Å¸Å¸Â¢ QUENTE", 0)))],
-        [p("Em atenÃƒÂ§ÃƒÂ£o"), p(int(temperaturas.get("Ã°Å¸Å¸Â¡ ATENÃƒâ€¡ÃƒÆ’O", 0)))],
-        [p("Atrasados na recompra"), p(int(temperaturas.get("Ã°Å¸â€Â´ ATRASADO NA RECOMPRA", 0)))],
-        [p("Inativos"), p(int(temperaturas.get("Ã¢Å¡Â« CLIENTE INATIVO", 0)))],
-        [p("Novos"), p(int(temperaturas.get("Ã°Å¸Å¸Â£ NOVO", 0)))],
+        [p("Situação"), p("Clientes")],
+        [p("Quentes"), p(int(temperaturas.get("🟢 QUENTE", 0)))],
+        [p("Em atenção"), p(int(temperaturas.get("🟡 ATENÇÃO", 0)))],
+        [p("Atrasados na recompra"), p(int(temperaturas.get("🔴 ATRASADO NA RECOMPRA", 0)))],
+        [p("Inativos"), p(int(temperaturas.get("⚫ CLIENTE INATIVO", 0)))],
+        [p("Novos"), p(int(temperaturas.get("🟣 NOVO", 0)))],
     ]
-    elementos.append(Paragraph("2. SituaÃƒÂ§ÃƒÂ£o da carteira", styles["SecaoCEO"]))
+    elementos.append(Paragraph("2. Situação da carteira", styles["SecaoCEO"]))
     elementos.append(tabela(carteira, [80 * mm, 35 * mm]))
 
     elementos.append(Paragraph("3. Prioridades comerciais", styles["SecaoCEO"]))
-    prioridades_pdf = [[p("Cliente"), p("Dias"), p("Ticket"), p("Potencial"), p("RecomendaÃƒÂ§ÃƒÂ£o")]]
+    prioridades_pdf = [[p("Cliente"), p("Dias"), p("Ticket"), p("Potencial"), p("Recomendação")]]
     for _, r in prioridade.head(20).iterrows():
         prioridades_pdf.append([
             p(r["Cliente"]), p(int(r["dias_sem_comprar"])), p(fmt(r["ticket_medio"])),
@@ -4313,11 +4338,11 @@ def gerar_pdf(
     elementos.append(Paragraph("4. Churn e receita em risco", styles["SecaoCEO"]))
     elementos.append(Paragraph(
         f"Taxa estimada: <b>{taxa_churn:.1f}%</b>. Um cliente entra em churn quando "
-        "possui ciclo de recompra conhecido e ultrapassa duas vezes seu intervalo mÃƒÂ©dio sem comprar.",
+        "possui ciclo de recompra conhecido e ultrapassa duas vezes seu intervalo médio sem comprar.",
         styles["BodyText"]
     ))
     elementos.append(Spacer(1, 6))
-    churn_pdf = [[p("Cliente"), p("Sem comprar"), p("Ciclo"), p("AlÃƒÂ©m do limite"), p("Potencial em risco")]]
+    churn_pdf = [[p("Cliente"), p("Sem comprar"), p("Ciclo"), p("Além do limite"), p("Potencial em risco")]]
     for _, r in clientes_churn.head(25).iterrows():
         churn_pdf.append([
             p(r["Cliente"]), p(f"{int(r['dias_sem_comprar'])} dias"),
@@ -4329,30 +4354,30 @@ def gerar_pdf(
     else:
         elementos.append(tabela(churn_pdf, [48 * mm, 27 * mm, 24 * mm, 30 * mm, 31 * mm]))
 
-    elementos.append(Paragraph("5. OrÃƒÂ§amentos que exigem retorno", styles["SecaoCEO"]))
-    orc_pdf = [[p("OrÃƒÂ§amento"), p("Cliente"), p("Dias"), p("Valor"), p("Prioridade")]]
+    elementos.append(Paragraph("5. Orçamentos que exigem retorno", styles["SecaoCEO"]))
+    orc_pdf = [[p("Orçamento"), p("Cliente"), p("Dias"), p("Valor"), p("Prioridade")]]
     for _, r in orc_urgentes.head(25).iterrows():
         orc_pdf.append([
             p(r[co_num]), p(r[co_cli]), p(int(r["dias_no_sistema"])),
-            p(fmt(r[co_valor]) if co_valor else "NÃƒÂ£o informado"), p(r["acao_recomendada_orcamento"])
+            p(fmt(r[co_valor]) if co_valor else "Não informado"), p(r["acao_recomendada_orcamento"])
         ])
     if len(orc_pdf) == 1:
-        elementos.append(Paragraph("Nenhum orÃƒÂ§amento urgente.", styles["Normal"]))
+        elementos.append(Paragraph("Nenhum orçamento urgente.", styles["Normal"]))
     else:
         elementos.append(tabela(orc_pdf, [25 * mm, 50 * mm, 15 * mm, 28 * mm, 42 * mm]))
 
     inadimplentes = clientes[clientes["inadimplencia"] > 0].sort_values(
         "inadimplencia", ascending=False
     )
-    elementos.append(Paragraph("6. InadimplÃƒÂªncia por cliente", styles["SecaoCEO"]))
-    inad_pdf = [[p("Cliente"), p("Valor"), p("MÃƒÂ©dia de atraso"), p("Risco")]]
+    elementos.append(Paragraph("6. Inadimplência por cliente", styles["SecaoCEO"]))
+    inad_pdf = [[p("Cliente"), p("Valor"), p("Média de atraso"), p("Risco")]]
     for _, r in inadimplentes.head(25).iterrows():
         inad_pdf.append([
             p(r["Cliente"]), p(fmt(r["inadimplencia"])),
             p(f"{int(r['media_dias_atraso'])} dias"), p(r["risco_inadimplencia"])
         ])
     if len(inad_pdf) == 1:
-        elementos.append(Paragraph("Nenhuma inadimplÃƒÂªncia identificada.", styles["Normal"]))
+        elementos.append(Paragraph("Nenhuma inadimplência identificada.", styles["Normal"]))
     else:
         elementos.append(tabela(inad_pdf, [55 * mm, 32 * mm, 32 * mm, 41 * mm]))
 
@@ -4385,7 +4410,7 @@ def gerar_pdf(
             .sort_values(ascending=False)
             .head(15)
         )
-        fornecedores_pdf = [[p("Fornecedor"), p("Total a pagar"), p("% das obrigaÃƒÂ§ÃƒÂµes")]]
+        fornecedores_pdf = [[p("Fornecedor"), p("Total a pagar"), p("% das obrigações")]]
         for fornecedor, valor in pagar_fornecedor.items():
             participacao = (
                 float(valor) / metricas_fin["total_pagar"] * 100
@@ -4396,14 +4421,14 @@ def gerar_pdf(
             ])
         elementos.append(tabela(fornecedores_pdf, [80 * mm, 42 * mm, 38 * mm]))
 
-    elementos.append(Paragraph("9. AnÃƒÂ¡lise e plano de aÃƒÂ§ÃƒÂ£o", styles["SecaoCEO"]))
+    elementos.append(Paragraph("9. Análise e plano de ação", styles["SecaoCEO"]))
     dicas_financeiras = estrategia_financeira(metricas_fin)
     elementos.append(Paragraph(
-        f"<b>Hoje:</b> realizar {len(prioridade)} contatos prioritÃƒÂ¡rios e retornar "
-        f"{len(orc_urgentes)} orÃƒÂ§amentos urgentes.<br/>"
-        f"<b>PrÃƒÂ³ximos 7 dias:</b> acompanhar clientes em atenÃƒÂ§ÃƒÂ£o e propostas ainda abertas.<br/>"
-        f"<b>RecuperaÃƒÂ§ÃƒÂ£o:</b> abordar primeiro os {min(len(clientes_churn), 10)} clientes "
-        "em churn com maior potencial mensal e tratar pendÃƒÂªncias financeiras antes de uma nova oferta.<br/>"
+        f"<b>Hoje:</b> realizar {len(prioridade)} contatos prioritários e retornar "
+        f"{len(orc_urgentes)} orçamentos urgentes.<br/>"
+        f"<b>Próximos 7 dias:</b> acompanhar clientes em atenção e propostas ainda abertas.<br/>"
+        f"<b>Recuperação:</b> abordar primeiro os {min(len(clientes_churn), 10)} clientes "
+        "em churn com maior potencial mensal e tratar pendências financeiras antes de uma nova oferta.<br/>"
         f"<b>Financeiro:</b> {' '.join(dicas_financeiras)}",
         styles["BodyText"]
     ))
@@ -4411,15 +4436,15 @@ def gerar_pdf(
     elementos.append(Paragraph("10. Metodologia", styles["SecaoCEO"]))
     elementos.append(Paragraph(
         "<b>Churn estimado:</b> clientes com ciclo conhecido e mais de duas vezes o intervalo "
-        "mÃƒÂ©dio sem comprar, dividido pela quantidade de clientes com ciclo conhecido.<br/>"
-        "<b>Potencial mensal:</b> compras dos ÃƒÂºltimos trÃƒÂªs meses divididas por trÃƒÂªs.<br/>"
-        "<b>Capacidade das prioridades:</b> soma dos tickets mÃƒÂ©dios dos clientes quentes; "
-        "nÃƒÂ£o representa promessa de venda.<br/>"
+        "médio sem comprar, dividido pela quantidade de clientes com ciclo conhecido.<br/>"
+        "<b>Potencial mensal:</b> compras dos últimos três meses divididas por três.<br/>"
+        "<b>Capacidade das prioridades:</b> soma dos tickets médios dos clientes quentes; "
+        "não representa promessa de venda.<br/>"
         "<b>Percentual vencido:</b> valor vencido dividido pela carteira total ainda em aberto.<br/>"
-        "<b>ConcentraÃƒÂ§ÃƒÂ£o:</b> participaÃƒÂ§ÃƒÂ£o dos cinco maiores clientes no total a receber.<br/>"
+        "<b>Concentração:</b> participação dos cinco maiores clientes no total a receber.<br/>"
         "<b>Resultado financeiro mensal:</b> recebimentos liquidados menos pagamentos liquidados; "
-        "nÃƒÂ£o equivale necessariamente ao lucro contÃƒÂ¡bil.<br/>"
-        "<b>Cliente estratÃƒÂ©gico:</b> cliente situado entre os 10% de maior faturamento histÃƒÂ³rico.",
+        "não equivale necessariamente ao lucro contábil.<br/>"
+        "<b>Cliente estratégico:</b> cliente situado entre os 10% de maior faturamento histórico.",
         styles["BodyText"]
     ))
 
@@ -4427,8 +4452,8 @@ def gerar_pdf(
         canvas.saveState()
         canvas.setFont("Helvetica", 8)
         canvas.setFillColor(colors.HexColor("#667788"))
-        canvas.drawString(15 * mm, 9 * mm, "CRM Inteligente - RelatÃƒÂ³rio Comercial")
-        canvas.drawRightString(195 * mm, 9 * mm, f"PÃƒÂ¡gina {documento.page}")
+        canvas.drawString(15 * mm, 9 * mm, "CRM Inteligente - Relatório Comercial")
+        canvas.drawRightString(195 * mm, 9 * mm, f"Página {documento.page}")
         canvas.restoreState()
 
     doc.build(elementos, onFirstPage=rodape, onLaterPages=rodape)
@@ -4442,8 +4467,8 @@ def renderizar_financeiro_ceo(
 ):
     st.subheader("Financeiro CEO")
     st.caption(
-        "VisÃƒÂ£o estratÃƒÂ©gica da carteira de recebimentos em aberto. "
-        "Os valores representam entradas previstas, nÃƒÂ£o saldo bancÃƒÂ¡rio disponÃƒÂ­vel."
+        "Visão estratégica da carteira de recebimentos em aberto. "
+        "Os valores representam entradas previstas, não saldo bancário disponível."
     )
     metricas = calcular_resultado_financeiro(
         financeiro, contas_pagar, recebido_mes, pago_mes
@@ -4461,11 +4486,11 @@ def renderizar_financeiro_ceo(
         linha1[3].metric(
             f"Resultado financeiro {mes_resultado}",
             fmt(metricas["resultado_mes"]),
-            "Lucro" if metricas["resultado_mes"] >= 0 else "PrejuÃƒÂ­zo",
+            "Lucro" if metricas["resultado_mes"] >= 0 else "Prejuízo",
             delta_color="normal"
         )
     else:
-        linha1[3].metric("Resultado financeiro mensal", "IndisponÃƒÂ­vel")
+        linha1[3].metric("Resultado financeiro mensal", "Indisponível")
 
     linha2 = st.columns(4)
     linha2[0].metric(
@@ -4476,11 +4501,11 @@ def renderizar_financeiro_ceo(
     linha2[1].metric("Contas a pagar vencidas", fmt(metricas["pagar_vencido"]))
     linha2[2].metric("Sobra projetada em 30 dias", fmt(metricas["saldo_30_dias"]))
     linha2[3].metric(
-        "Margem financeira do mÃƒÂªs",
+        "Margem financeira do mês",
         f"{metricas['margem_caixa']:.1f}%"
     )
 
-    with st.expander("Como o resultado e a sobra sÃƒÂ£o calculados?"):
+    with st.expander("Como o resultado e a sobra são calculados?"):
         st.markdown(
             f"""
             **Resultado financeiro de {mes_resultado}**
@@ -4488,52 +4513,52 @@ def renderizar_financeiro_ceo(
             `Recebimentos liquidados - pagamentos liquidados`
 
             {fmt(metricas['recebido_mes'])} - {fmt(metricas['pago_mes'])}
-            = **{fmt(metricas['resultado_mes']) if resultado_disponivel else 'IndisponÃƒÂ­vel no modo Excel'}**
+            = **{fmt(metricas['resultado_mes']) if resultado_disponivel else 'Indisponível no modo Excel'}**
 
             **Sobra projetada em 30 dias**
 
-            `Contas a receber nos prÃƒÂ³ximos 30 dias - contas a pagar nos prÃƒÂ³ximos 30 dias`
+            `Contas a receber nos próximos 30 dias - contas a pagar nos próximos 30 dias`
 
-            Este resultado ÃƒÂ© uma visÃƒÂ£o de caixa. NÃƒÂ£o inclui automaticamente estoque,
-            depreciaÃƒÂ§ÃƒÂ£o, impostos provisionados ou despesas que ainda nÃƒÂ£o foram lanÃƒÂ§adas.
+            Este resultado é uma visão de caixa. Não inclui automaticamente estoque,
+            depreciação, impostos provisionados ou despesas que ainda não foram lançadas.
             """
         )
 
     linha3 = st.columns(4)
-    linha3[0].metric("Receber em atÃƒÂ© 7 dias", fmt(metricas["vence_7"]))
-    linha3[1].metric("Pagar em atÃƒÂ© 7 dias", fmt(metricas["pagar_7"]))
-    linha3[2].metric("Prazo mÃƒÂ©dio a receber", f"{metricas['prazo_medio']:.0f} dias")
-    linha3[3].metric("ConcentraÃƒÂ§ÃƒÂ£o nos 5 maiores", f"{metricas['concentracao_top5']:.1f}%")
+    linha3[0].metric("Receber em até 7 dias", fmt(metricas["vence_7"]))
+    linha3[1].metric("Pagar em até 7 dias", fmt(metricas["pagar_7"]))
+    linha3[2].metric("Prazo médio a receber", f"{metricas['prazo_medio']:.0f} dias")
+    linha3[3].metric("Concentração nos 5 maiores", f"{metricas['concentracao_top5']:.1f}%")
 
     if financeiro is None or financeiro.empty:
-        st.info("Nenhuma conta em aberto foi encontrada para montar a visÃƒÂ£o financeira.")
+        st.info("Nenhuma conta em aberto foi encontrada para montar a visão financeira.")
         if contas_pagar is None or contas_pagar.empty:
             return
 
     potencial_churn = float(clientes_churn["potencial_mensal"].sum())
     receita_em_risco = metricas["total_vencido"] + potencial_churn
     st.metric(
-        "ExposiÃƒÂ§ÃƒÂ£o estratÃƒÂ©gica estimada",
+        "Exposição estratégica estimada",
         fmt(receita_em_risco),
         help=(
             "Soma do valor vencido com o potencial mensal dos clientes em churn. "
-            "Ãƒâ€° um indicador de exposiÃƒÂ§ÃƒÂ£o, nÃƒÂ£o uma perda contÃƒÂ¡bil confirmada."
+            "É um indicador de exposição, não uma perda contábil confirmada."
         )
     )
 
-    st.markdown("#### Alertas estratÃƒÂ©gicos")
+    st.markdown("#### Alertas estratégicos")
     alertas = []
     if metricas["percentual_vencido"] >= 25:
         alertas.append(
-            f"CRÃƒÂTICO: {metricas['percentual_vencido']:.1f}% da carteira estÃƒÂ¡ vencida."
+            f"CRÍTICO: {metricas['percentual_vencido']:.1f}% da carteira está vencida."
         )
     elif metricas["percentual_vencido"] >= 10:
         alertas.append(
-            f"ATENÃƒâ€¡ÃƒÆ’O: {metricas['percentual_vencido']:.1f}% da carteira estÃƒÂ¡ vencida."
+            f"ATENÇÃO: {metricas['percentual_vencido']:.1f}% da carteira está vencida."
         )
     if metricas["concentracao_top5"] >= 50:
         alertas.append(
-            "A carteira estÃƒÂ¡ concentrada: os cinco maiores clientes representam "
+            "A carteira está concentrada: os cinco maiores clientes representam "
             f"{metricas['concentracao_top5']:.1f}% do total a receber."
         )
     vencido_60 = float(financeiro.loc[
@@ -4541,19 +4566,19 @@ def renderizar_financeiro_ceo(
     ].sum())
     if vencido_60 > 0:
         alertas.append(
-            f"Existem {fmt(vencido_60)} vencidos hÃƒÂ¡ mais de 60 dias."
+            f"Existem {fmt(vencido_60)} vencidos há mais de 60 dias."
         )
     if metricas["vence_7"] > 0:
         alertas.append(
-            f"HÃƒÂ¡ {fmt(metricas['vence_7'])} previstos para entrar nos prÃƒÂ³ximos 7 dias."
+            f"Há {fmt(metricas['vence_7'])} previstos para entrar nos próximos 7 dias."
         )
     if metricas["saldo_30_dias"] < 0:
         alertas.append(
-            f"DÃƒÂ©ficit projetado de {fmt(abs(metricas['saldo_30_dias']))} "
-            "para os prÃƒÂ³ximos 30 dias."
+            f"Déficit projetado de {fmt(abs(metricas['saldo_30_dias']))} "
+            "para os próximos 30 dias."
         )
     if not alertas:
-        st.success("Nenhum alerta financeiro relevante pelos critÃƒÂ©rios atuais.")
+        st.success("Nenhum alerta financeiro relevante pelos critérios atuais.")
     else:
         for alerta in alertas:
             st.warning(alerta)
@@ -4564,8 +4589,8 @@ def renderizar_financeiro_ceo(
         "Vencido de 31 a 60 dias",
         "Vencido de 16 a 30 dias",
         "Vencido de 8 a 15 dias",
-        "Vencido atÃƒÂ© 7 dias",
-        "A vencer em atÃƒÂ© 7 dias",
+        "Vencido até 7 dias",
+        "A vencer em até 7 dias",
         "A vencer de 8 a 15 dias",
         "A vencer de 16 a 30 dias",
         "A vencer de 31 a 60 dias",
@@ -4580,13 +4605,13 @@ def renderizar_financeiro_ceo(
         st.bar_chart(aging)
 
     with col_fluxo:
-        st.markdown("#### Entradas previstas por mÃƒÂªs")
+        st.markdown("#### Entradas previstas por mês")
         futuro = financeiro[~financeiro["Vencida"]].copy()
         if futuro.empty:
-            st.info("NÃƒÂ£o hÃƒÂ¡ recebimentos futuros na carteira consultada.")
+            st.info("Não há recebimentos futuros na carteira consultada.")
         else:
-            futuro["MÃƒÂªs"] = futuro["Vencimento"].dt.strftime("%m/%Y")
-            fluxo = futuro.groupby("MÃƒÂªs", sort=False)["Valor"].sum()
+            futuro["Mês"] = futuro["Vencimento"].dt.strftime("%m/%Y")
+            fluxo = futuro.groupby("Mês", sort=False)["Valor"].sum()
             st.bar_chart(fluxo)
 
     st.markdown("#### Maiores clientes na carteira")
@@ -4605,7 +4630,7 @@ def renderizar_financeiro_ceo(
     ranking["Total"] = ranking["Total"].map(fmt)
     ranking["Vencido"] = ranking["Vencido"].map(fmt)
     ranking = ranking.rename(columns={
-        "Titulos": "TÃƒÂ­tulos",
+        "Titulos": "Títulos",
         "Maior_atraso": "Maior atraso (dias)"
     })
     st.dataframe(ranking, use_container_width=True, hide_index=True)
@@ -4613,8 +4638,8 @@ def renderizar_financeiro_ceo(
     st.markdown("#### Contas a pagar por fornecedor")
     if contas_pagar is None or contas_pagar.empty:
         st.info(
-            "Contas a pagar nÃƒÂ£o estÃƒÂ£o disponÃƒÂ­veis. No modo API, atualize os dados; "
-            "no modo Excel, seria necessÃƒÂ¡rio um quarto arquivo de contas a pagar."
+            "Contas a pagar não estão disponíveis. No modo API, atualize os dados; "
+            "no modo Excel, seria necessário um quarto arquivo de contas a pagar."
         )
     else:
         fornecedores = (
@@ -4634,8 +4659,8 @@ def renderizar_financeiro_ceo(
             "Proximo_vencimento"
         ].dt.strftime("%d/%m/%Y")
         fornecedores = fornecedores.rename(columns={
-            "Titulos": "TÃƒÂ­tulos",
-            "Proximo_vencimento": "PrÃƒÂ³ximo vencimento"
+            "Titulos": "Títulos",
+            "Proximo_vencimento": "Próximo vencimento"
         })
         st.dataframe(
             fornecedores.head(25), use_container_width=True, hide_index=True
@@ -4649,30 +4674,30 @@ def renderizar_financeiro_ceo(
         agenda["Vencimento"] = agenda["Vencimento"].dt.strftime("%d/%m/%Y")
         agenda["Valor"] = agenda["Valor"].map(fmt)
         agenda = agenda.rename(columns={
-            "Descricao": "DescriÃƒÂ§ÃƒÂ£o",
-            "Situacao": "SituaÃƒÂ§ÃƒÂ£o",
+            "Descricao": "Descrição",
+            "Situacao": "Situação",
             "Dias_para_vencer": "Dias para vencer"
         })
         st.dataframe(agenda, use_container_width=True, hide_index=True)
 
-    st.markdown("#### AnÃƒÂ¡lise e estratÃƒÂ©gia financeira")
+    st.markdown("#### Análise e estratégia financeira")
     if not resultado_disponivel:
         st.info(
-            "O lucro ou prejuÃƒÂ­zo mensal exige os movimentos liquidados de recebimentos "
-            "e pagamentos. Esse cÃƒÂ¡lculo fica disponÃƒÂ­vel automaticamente pelo modo API."
+            "O lucro ou prejuízo mensal exige os movimentos liquidados de recebimentos "
+            "e pagamentos. Esse cálculo fica disponível automaticamente pelo modo API."
         )
     elif metricas["resultado_mes"] > 0:
         st.success(
-            f"HÃƒÂ¡ lucro financeiro de {fmt(metricas['resultado_mes'])} em "
+            f"Há lucro financeiro de {fmt(metricas['resultado_mes'])} em "
             f"{mes_resultado}."
         )
     elif metricas["resultado_mes"] < 0:
         st.error(
-            f"HÃƒÂ¡ prejuÃƒÂ­zo financeiro de {fmt(abs(metricas['resultado_mes']))} em "
+            f"Há prejuízo financeiro de {fmt(abs(metricas['resultado_mes']))} em "
             f"{mes_resultado}."
         )
     else:
-        st.warning(f"O resultado financeiro de {mes_resultado} estÃƒÂ¡ equilibrado.")
+        st.warning(f"O resultado financeiro de {mes_resultado} está equilibrado.")
     if resultado_disponivel:
         for dica in estrategia_financeira(metricas):
             st.write(f"- {dica}")
@@ -4681,16 +4706,16 @@ def renderizar_financeiro_real(dados):
     configuracao = dados.get("configuracao", {})
     real = calcular_financeiro_real(dados, configuracao)
     st.markdown("---")
-    st.subheader("Resultado econÃƒÂ´mico e cenÃƒÂ¡rios")
+    st.subheader("Resultado econômico e cenários")
     if not real:
         st.info(
-            "Os dados desta sessÃƒÂ£o foram carregados por uma versÃƒÂ£o anterior. "
-            "Clique em 'Atualizar dados do GestÃƒÂ£oClick' para calcular custos, "
-            "margens e resultado econÃƒÂ´mico."
+            "Os dados desta sessão foram carregados por uma versão anterior. "
+            "Clique em 'Atualizar dados do GestãoClick' para calcular custos, "
+            "margens e resultado econômico."
         )
         return
     cols = st.columns(4)
-    cols[0].metric("Receita do mÃƒÂªs", fmt(real["receita_mes"]))
+    cols[0].metric("Receita do mês", fmt(real["receita_mes"]))
     cols[1].metric("Custo das vendas", fmt(real["custo_mes"]))
     cols[2].metric("Lucro bruto", fmt(real["lucro_bruto"]))
     cols[3].metric("Margem bruta", f"{real['margem_bruta']:.1f}%")
@@ -4702,23 +4727,23 @@ def renderizar_financeiro_real(dados):
     cols2[2].metric(
         "Lucro operacional estimado",
         fmt(real["lucro_operacional"]),
-        "Lucro" if real["lucro_operacional"] >= 0 else "PrejuÃƒÂ­zo"
+        "Lucro" if real["lucro_operacional"] >= 0 else "Prejuízo"
     )
     cols2[3].metric("Margem operacional", f"{real['margem_operacional']:.1f}%")
     if not real["custos_disponiveis"]:
         st.warning(
-            "Os custos das vendas nÃƒÂ£o estÃƒÂ£o preenchidos na API. O lucro bruto e "
+            "Os custos das vendas não estão preenchidos na API. O lucro bruto e "
             "operacional podem estar superestimados."
         )
-    st.markdown("#### CenÃƒÂ¡rios de caixa")
+    st.markdown("#### Cenários de caixa")
     cenarios = pd.DataFrame([
-        {"CenÃƒÂ¡rio": nome, "Caixa projetado": valor}
+        {"Cenário": nome, "Caixa projetado": valor}
         for nome, valor in real["cenarios"].items()
     ])
     cenarios["Caixa projetado"] = cenarios["Caixa projetado"].map(fmt)
     st.dataframe(cenarios, use_container_width=True, hide_index=True)
     st.caption(
-        "Os cenÃƒÂ¡rios consideram 70%, 90% ou 100% da carteira a receber, "
+        "Os cenários consideram 70%, 90% ou 100% da carteira a receber, "
         "menos todas as contas a pagar registradas."
     )
 
@@ -4726,32 +4751,32 @@ def renderizar_gestao_comercial(dados):
     indicadores, vendedores = calcular_gestao_comercial(
         dados, dados.get("configuracao", {})
     )
-    st.subheader("GestÃƒÂ£o Comercial")
+    st.subheader("Gestão Comercial")
     if not indicadores:
         st.info(
-            "Os dados desta sessÃƒÂ£o foram carregados por uma versÃƒÂ£o anterior. "
-            "Clique em 'Atualizar dados do GestÃƒÂ£oClick' para calcular metas, "
+            "Os dados desta sessão foram carregados por uma versão anterior. "
+            "Clique em 'Atualizar dados do GestãoClick' para calcular metas, "
             "margens e desempenho por vendedor."
         )
         return
     cols = st.columns(4)
     cols[0].metric("Meta geral", fmt(indicadores["meta_geral"]))
-    cols[1].metric("Realizado no mÃƒÂªs", fmt(indicadores["realizado"]))
-    cols[2].metric("ProjeÃƒÂ§ÃƒÂ£o de fechamento", fmt(indicadores["projecao"]))
-    cols[3].metric("DistÃƒÂ¢ncia da meta", fmt(indicadores["distancia_meta"]))
+    cols[1].metric("Realizado no mês", fmt(indicadores["realizado"]))
+    cols[2].metric("Projeção de fechamento", fmt(indicadores["projecao"]))
+    cols[3].metric("Distância da meta", fmt(indicadores["distancia_meta"]))
     cols2 = st.columns(3)
     cols2[0].metric(
-        "ConversÃƒÂ£o de orÃƒÂ§amentos",
+        "Conversão de orçamentos",
         f"{indicadores['conversao_orcamentos']:.1f}%"
     )
-    cols2[1].metric("OrÃƒÂ§amentos analisados", indicadores["orcamentos_total"])
+    cols2[1].metric("Orçamentos analisados", indicadores["orcamentos_total"])
     cols2[2].metric(
-        "Idade mÃƒÂ©dia dos abertos",
+        "Idade média dos abertos",
         f"{indicadores['idade_media_abertos']:.0f} dias"
     )
     st.caption(
-        "A conversÃƒÂ£o usa as situaÃƒÂ§ÃƒÂµes dos orÃƒÂ§amentos. Sem vÃƒÂ­nculo direto entre "
-        "orÃƒÂ§amento e venda, o tempo exato atÃƒÂ© fechamento nÃƒÂ£o pode ser afirmado."
+        "A conversão usa as situações dos orçamentos. Sem vínculo direto entre "
+        "orçamento e venda, o tempo exato até fechamento não pode ser afirmado."
     )
     if not vendedores.empty:
         exibir = vendedores.copy()
@@ -4763,16 +4788,16 @@ def renderizar_gestao_comercial(dados):
             lambda v: f"{v:.1f}%"
         )
         exibir = exibir.rename(columns={
-            "Ticket_medio": "Ticket mÃƒÂ©dio",
+            "Ticket_medio": "Ticket médio",
             "Margem_pct": "Margem %",
             "Atingimento_pct": "Atingimento %",
-            "Distancia_meta": "DistÃƒÂ¢ncia da meta",
+            "Distancia_meta": "Distância da meta",
         })
         st.dataframe(exibir, use_container_width=True, hide_index=True)
     st.markdown("#### Motivos de perda")
     if indicadores["motivos_perda"].empty:
         st.info(
-            "Nenhum motivo de perda foi encontrado nas observaÃƒÂ§ÃƒÂµes dos orÃƒÂ§amentos."
+            "Nenhum motivo de perda foi encontrado nas observações dos orçamentos."
         )
     else:
         st.dataframe(
@@ -4786,7 +4811,7 @@ def renderizar_qualidade_dados(dados):
     clientes = dados.get("clientes", pd.DataFrame()).copy()
     st.subheader("Qualidade dos Dados")
     cols = st.columns(5)
-    cols[0].metric("Vendas excluÃƒÂ­das", qualidade.get("vendas_canceladas", 0))
+    cols[0].metric("Vendas excluídas", qualidade.get("vendas_canceladas", 0))
     cols[1].metric("Sem cliente ID", qualidade.get("vendas_sem_cliente_id", 0))
     cols[2].metric("Nomes duplicados", qualidade.get("clientes_nomes_duplicados", 0))
     cols[3].metric("Sem custo", qualidade.get("vendas_sem_custo", 0))
@@ -4794,8 +4819,8 @@ def renderizar_qualidade_dados(dados):
     problemas = sum(int(v) for v in qualidade.values())
     if problemas:
         st.warning(
-            "HÃƒÂ¡ registros que podem reduzir a precisÃƒÂ£o dos indicadores. "
-            "Vendas canceladas e devolvidas foram excluÃƒÂ­das automaticamente."
+            "Há registros que podem reduzir a precisão dos indicadores. "
+            "Vendas canceladas e devolvidas foram excluídas automaticamente."
         )
     else:
         st.success("Nenhum problema relevante foi detectado na base consultada.")
@@ -4803,25 +4828,25 @@ def renderizar_qualidade_dados(dados):
         """
         **Regras aplicadas**
 
-        - clientes sÃƒÂ£o consolidados por `cliente_id`; o nome ÃƒÂ© apenas para exibiÃƒÂ§ÃƒÂ£o;
-        - vendas canceladas, devolvidas, estornadas, reprovadas ou perdidas sÃƒÂ£o excluÃƒÂ­das;
-        - registros duplicados da API sÃƒÂ£o removidos pelo ID;
-        - custos, vendedor e identificaÃƒÂ§ÃƒÂ£o ausentes sÃƒÂ£o sinalizados;
-        - contas futuras nÃƒÂ£o entram na inadimplÃƒÂªncia antes do vencimento.
+        - clientes são consolidados por `cliente_id`; o nome é apenas para exibição;
+        - vendas canceladas, devolvidas, estornadas, reprovadas ou perdidas são excluídas;
+        - registros duplicados da API são removidos pelo ID;
+        - custos, vendedor e identificação ausentes são sinalizados;
+        - contas futuras não entram na inadimplência antes do vencimento.
         """
     )
 
-    st.markdown("#### Clientes ativos com pendÃƒÂªncias")
+    st.markdown("#### Clientes ativos com pendências")
     if clientes.empty or "inadimplencia" not in clientes.columns:
         st.info(
-            "Atualize os dados do GestÃƒÂ£oClick para analisar clientes com pendÃƒÂªncias."
+            "Atualize os dados do GestãoClick para analisar clientes com pendências."
         )
         return
     ativos_inadimplentes = clientes[
         clientes["inadimplencia"] > 0
     ].sort_values("inadimplencia", ascending=False).copy()
     if ativos_inadimplentes.empty:
-        st.success("Nenhum cliente da carteira comercial possui pendÃƒÂªncia identificada.")
+        st.success("Nenhum cliente da carteira comercial possui pendência identificada.")
     else:
         tabela_ativos = ativos_inadimplentes[[
             "Cliente", "ultima_compra", "inadimplencia",
@@ -4830,17 +4855,17 @@ def renderizar_qualidade_dados(dados):
         tabela_ativos["ultima_compra"] = tabela_ativos["ultima_compra"].dt.strftime("%d/%m/%Y")
         tabela_ativos["inadimplencia"] = tabela_ativos["inadimplencia"].map(fmt)
         tabela_ativos = tabela_ativos.rename(columns={
-            "ultima_compra": "ÃƒÅ¡ltima compra",
+            "ultima_compra": "Última compra",
             "inadimplencia": "Valor vencido",
-            "media_dias_atraso": "MÃƒÂ©dia de atraso",
-            "temperatura": "SituaÃƒÂ§ÃƒÂ£o comercial",
+            "media_dias_atraso": "Média de atraso",
+            "temperatura": "Situação comercial",
         })
         st.dataframe(tabela_ativos, use_container_width=True, hide_index=True)
 
 def renderizar_card_metric(coluna, titulo, valor, detalhe="", ajuda=None):
     coluna.metric(titulo, valor, detalhe, help=ajuda)
 
-def renderizar_grid_orcamentos(orcamentos, co_num, co_cli, co_valor, incluir_acao=False):
+def renderizar_cards_orcamentos_simples(orcamentos, co_num, co_cli, co_valor, incluir_acao=False):
     cards = list(orcamentos.head(24).iterrows())
     for i in range(0, len(cards), 3):
         cols = st.columns(3)
@@ -4851,34 +4876,31 @@ def renderizar_grid_orcamentos(orcamentos, co_num, co_cli, co_valor, incluir_aca
                 valor = fmt_html(r.get(co_valor, 0)) if co_valor else "Sem valor"
                 dias = int(r.get("dias_no_sistema", 0) or 0)
                 acao = html_seguro(r.get("acao_recomendada_orcamento", "")) if incluir_acao else ""
+                linha_acao = f"<br>Ação: <b>{acao}</b>" if acao else ""
                 st.markdown(f"""
 <div style="background:white;padding:14px;border-radius:10px;border:1px solid #ddd;margin-bottom:10px;">
-<b>OrÃƒÂ§amento #{numero}</b><br>
+<b>Orçamento #{numero}</b><br>
 Cliente: <b>{cliente}</b><br>
 Valor: <b>{valor}</b><br>
-Tempo no sistema: <b>{dias} dia(s)</b><br>
-{f"AÃƒÂ§ÃƒÂ£o: <b>{acao}</b>" if acao else ""}
+Tempo no sistema: <b>{dias} dia(s)</b>{linha_acao}
 </div>
 """, unsafe_allow_html=True)
 
-def renderizar_grid_clientes_simples(clientes_df, modo, valor_coluna="potencial_mensal"):
+def renderizar_cards_clientes_simples(clientes_df):
     cards = list(clientes_df.head(24).iterrows())
     for i in range(0, len(cards), 3):
         cols = st.columns(3)
-        for j, (indice, row) in enumerate(cards[i:i+3]):
+        for j, (_, r) in enumerate(cards[i:i+3]):
             with cols[j]:
-                try:
-                    card_cliente(row, modo, f"{indice}_{i}_{j}")
-                except Exception:
-                    cliente = html_seguro(row.get("Cliente", "Cliente sem nome"))
-                    vendedor = html_seguro(row.get("Vendedor", "Sem vendedor"))
-                    motivo = html_seguro(row.get("motivo_prioridade", row.get("temperatura", "")))
-                    valor = fmt_html(row.get(valor_coluna, 0))
-                    st.markdown(f"""
+                cliente = html_seguro(r.get("Cliente", "Cliente sem nome"))
+                vendedor = html_seguro(r.get("Vendedor", "Sem vendedor"))
+                motivo = html_seguro(r.get("motivo_prioridade", r.get("temperatura", "Acompanhamento")))
+                potencial = fmt_html(r.get("potencial_mensal", r.get("ticket_medio", 0)))
+                st.markdown(f"""
 <div style="background:white;padding:14px;border-radius:10px;border:1px solid #ddd;margin-bottom:10px;">
 <b>{cliente}</b><br>
 Vendedor: <b>{vendedor}</b><br>
-Valor/Potencial: <b>{valor}</b><br>
+Potencial/ticket: <b>{potencial}</b><br>
 Motivo: <b>{motivo}</b>
 </div>
 """, unsafe_allow_html=True)
@@ -4887,7 +4909,7 @@ def renderizar_retencao_crescimento_ceo(
     indicadores, clientes, prioridade
 ):
     st.markdown("---")
-    st.subheader("RETENÃƒâ€¡ÃƒÆ’O E CRESCIMENTO")
+    st.subheader("RETENÇÃO E CRESCIMENTO")
     contagem = indicadores["contagem_status"]
     historico = indicadores["historico"]
     receita_prevista = float(clientes["faturamento"].sum())
@@ -4895,103 +4917,103 @@ def renderizar_retencao_crescimento_ceo(
 
     linha1 = st.columns(4)
     renderizar_card_metric(
-        linha1[0], "Ã°Å¸â€™Â° Receita Prevista", fmt(receita_prevista),
-        ajuda="Faturamento total do perÃƒÂ­odo carregado no sistema."
+        linha1[0], "💰 Receita Prevista", fmt(receita_prevista),
+        ajuda="Faturamento total do período carregado no sistema."
     )
     renderizar_card_metric(
-        linha1[1], "Ã°Å¸Å½Â¯ Venda PossÃƒÂ­vel Hoje", fmt(venda_possivel),
-        ajuda="Soma do ticket mÃƒÂ©dio dos clientes na prioridade comercial de hoje."
+        linha1[1], "🎯 Venda Possível Hoje", fmt(venda_possivel),
+        ajuda="Soma do ticket médio dos clientes na prioridade comercial de hoje."
     )
     renderizar_card_metric(
-        linha1[2], "Ã¢Å¡Â Ã¯Â¸Â Carteira em Risco",
+        linha1[2], "⚠️ Carteira em Risco",
         fmt(indicadores["carteira_risco_mensal"]),
         f"{indicadores['qtd_risco']} clientes",
-        "Receita que pode ser perdida caso clientes em risco nÃƒÂ£o sejam trabalhados."
+        "Receita que pode ser perdida caso clientes em risco não sejam trabalhados."
     )
     renderizar_card_metric(
-        linha1[3], "Ã°Å¸â€â€ž Potencial RecuperÃƒÂ¡vel",
+        linha1[3], "🔄 Potencial Recuperável",
         fmt(indicadores["potencial_recuperavel_mensal"]),
         f"{indicadores['qtd_recuperaveis']} clientes",
-        "Receita que pode voltar para a empresa atravÃƒÂ©s da recuperaÃƒÂ§ÃƒÂ£o da carteira."
+        "Receita que pode voltar para a empresa através da recuperação da carteira."
     )
 
     linha2 = st.columns(4)
     renderizar_card_metric(
-        linha2[0], "Ã°Å¸Å¡Â¨ Churn Financeiro",
+        linha2[0], "🚨 Churn Financeiro",
         fmt(indicadores["churn_financeiro_mensal"]),
         f"Anual: {fmt(indicadores['churn_financeiro_anual'])}",
         "Receita potencial perdida por clientes que deixaram de comprar."
     )
     renderizar_card_metric(
-        linha2[1], "Ã°Å¸â€˜Â¥ Clientes em Risco",
+        linha2[1], "👥 Clientes em Risco",
         int(contagem.get("EM RISCO", 0)),
-        ajuda="Clientes que passaram do ciclo mÃƒÂ©dio de compra, mas ainda nÃƒÂ£o chegaram a 2x o ciclo."
+        ajuda="Clientes que passaram do ciclo médio de compra, mas ainda não chegaram a 2x o ciclo."
     )
     renderizar_card_metric(
-        linha2[2], "Ã¢ÂÅ’ Clientes Perdidos",
+        linha2[2], "❌ Clientes Perdidos",
         int(contagem.get("CHURN", 0)),
-        ajuda="Clientes hÃƒÂ¡ mais de duas vezes o ciclo mÃƒÂ©dio de recompra sem comprar."
+        ajuda="Clientes há mais de duas vezes o ciclo médio de recompra sem comprar."
     )
     cac_valor = (
         fmt(indicadores["cac_atual"])
         if indicadores["novos_clientes_atual"] else "Sem novos clientes"
     )
     renderizar_card_metric(
-        linha2[3], "Ã°Å¸â€™Âµ CAC Atual", cac_valor,
+        linha2[3], "💵 CAC Atual", cac_valor,
         texto_variacao(indicadores["cac_variacao"]),
         "Quanto custa adquirir um novo cliente."
     )
 
     st.caption(
         f"CAC anterior: {fmt(indicadores['cac_anterior'])} | "
-        f"Novos clientes no mÃƒÂªs atual: {indicadores['novos_clientes_atual']} | "
-        f"Novos clientes no mÃƒÂªs anterior: {indicadores['novos_clientes_anterior']}"
+        f"Novos clientes no mês atual: {indicadores['novos_clientes_atual']} | "
+        f"Novos clientes no mês anterior: {indicadores['novos_clientes_anterior']}"
     )
 
     st.markdown("#### Clientes Perdidos")
     col_status = st.columns(3)
-    col_status[0].metric("SaudÃƒÂ¡veis", int(contagem.get("SAUDÃƒÂVEL", 0)))
+    col_status[0].metric("Saudáveis", int(contagem.get("SAUDÁVEL", 0)))
     col_status[1].metric("Em risco", int(contagem.get("EM RISCO", 0)))
     col_status[2].metric("Churn", int(contagem.get("CHURN", 0)))
 
-    st.markdown("#### Taxa de RecuperaÃƒÂ§ÃƒÂ£o")
+    st.markdown("#### Taxa de Recuperação")
     st.metric(
         "Clientes recuperados / clientes marcados como em risco",
         f"{indicadores['taxa_recuperacao']:.1f}%",
-        help="Clientes que estavam em risco no mÃƒÂªs anterior e voltaram a comprar no mÃƒÂªs atual."
+        help="Clientes que estavam em risco no mês anterior e voltaram a comprar no mês atual."
     )
 
     if historico.empty:
-        st.info("Ainda nÃƒÂ£o hÃƒÂ¡ histÃƒÂ³rico mensal suficiente para os grÃƒÂ¡ficos executivos.")
+        st.info("Ainda não há histórico mensal suficiente para os gráficos executivos.")
         return
 
-    grafico = historico.set_index("MÃƒÂªs")
+    grafico = historico.set_index("Mês")
     col_g1, col_g2 = st.columns(2)
     with col_g1:
-        st.markdown("#### EvoluÃƒÂ§ÃƒÂ£o do Churn Financeiro")
+        st.markdown("#### Evolução do Churn Financeiro")
         st.line_chart(grafico[["Churn financeiro"]])
     with col_g2:
-        st.markdown("#### EvoluÃƒÂ§ÃƒÂ£o da Carteira em Risco")
+        st.markdown("#### Evolução da Carteira em Risco")
         st.line_chart(grafico[["Carteira em risco"]])
 
     col_g3, col_g4 = st.columns(2)
     with col_g3:
-        st.markdown("#### EvoluÃƒÂ§ÃƒÂ£o do CAC")
+        st.markdown("#### Evolução do CAC")
         st.line_chart(grafico[["CAC"]])
     with col_g4:
         st.markdown("#### Clientes por Status")
         status_df = pd.DataFrame({
-            "Status": ["SaudÃƒÂ¡veis", "Em risco", "Churn"],
+            "Status": ["Saudáveis", "Em risco", "Churn"],
             "Clientes": [
-                int(contagem.get("SAUDÃƒÂVEL", 0)),
+                int(contagem.get("SAUDÁVEL", 0)),
                 int(contagem.get("EM RISCO", 0)),
                 int(contagem.get("CHURN", 0)),
             ]
         }).set_index("Status")
         st.bar_chart(status_df)
 
-    st.markdown("#### HistÃƒÂ³rico da Taxa de RecuperaÃƒÂ§ÃƒÂ£o")
-    st.line_chart(grafico[["Taxa de recuperaÃƒÂ§ÃƒÂ£o"]])
+    st.markdown("#### Histórico da Taxa de Recuperação")
+    st.line_chart(grafico[["Taxa de recuperação"]])
 
 def renderizar():
     dados = st.session_state.dados_processados
@@ -5032,27 +5054,27 @@ def renderizar():
         atualizado = dados.get("atualizado_em")
         texto_atualizacao = atualizado.strftime("%d/%m/%Y %H:%M") if atualizado else "agora"
         st.success(
-            f"Dados carregados pela API do GestÃƒÂ£oClick | "
+            f"Dados carregados pela API do GestãoClick | "
             f"Vendedor: {dados.get('vendedor_nome', 'Todos')} | "
-            f"PerÃƒÂ­odo: {periodo_inicio:%d/%m/%Y} a {periodo_fim:%d/%m/%Y} | "
+            f"Período: {periodo_inicio:%d/%m/%Y} a {periodo_fim:%d/%m/%Y} | "
             f"Atualizado em {texto_atualizacao}"
         )
     else:
         st.info("Dados carregados por arquivos Excel.")
 
-    if pagina == "Resumo DiÃƒÂ¡rio":
+    if pagina == "Resumo Diário":
         renderizar_resumo_diario(dados)
 
-    if pagina == "GeraÃƒÂ§ÃƒÂ£o de OrÃƒÂ§amentos":
+    if pagina == "Geração de Orçamentos":
         renderizar_geracao_orcamentos()
 
-    if pagina == "AÃƒÂ§ÃƒÂµes de Hoje":
-        st.subheader("AÃƒÂ§ÃƒÂµes de Hoje")
-        st.caption("Fila operacional do dia com clientes, orÃƒÂ§amentos e retornos que precisam de aÃƒÂ§ÃƒÂ£o.")
+    if pagina == "Ações de Hoje":
+        st.subheader("Ações de Hoje")
+        st.caption("Fila operacional do dia com clientes, orçamentos e retornos que precisam de ação.")
         orc_2_dias = orc_aberto[orc_aberto["dias_no_sistema"] == 2].copy() if not orc_aberto.empty else pd.DataFrame()
         orc_urgentes = orc_aberto[orc_aberto["dias_no_sistema"] >= 3].copy() if not orc_aberto.empty else pd.DataFrame()
         atraso_recompra = clientes[
-            clientes["temperatura"].isin(["Ã°Å¸â€Â´ ATRASADO NA RECOMPRA", "Ã¢Å¡Â« CLIENTE INATIVO"])
+            clientes["temperatura"].isin(["🔴 ATRASADO NA RECOMPRA", "⚫ CLIENTE INATIVO"])
             & (~clientes["ja_ligou_hoje"])
         ].copy()
         retornos_hoje = clientes[
@@ -5062,8 +5084,8 @@ def renderizar():
 
         c1, c2, c3, c4, c5 = st.columns(5)
         c1.metric("Clientes para ligar", len(prioridade))
-        c2.metric("OrÃƒÂ§amentos com 2 dias", len(orc_2_dias))
-        c3.metric("OrÃƒÂ§amentos urgentes 3+ dias", len(orc_urgentes))
+        c2.metric("Orçamentos com 2 dias", len(orc_2_dias))
+        c3.metric("Orçamentos urgentes 3+ dias", len(orc_urgentes))
         c4.metric("Atraso de recompra", len(atraso_recompra))
         c5.metric("Retornos hoje", len(retornos_hoje))
 
@@ -5075,19 +5097,19 @@ def renderizar():
                     with cols_cards[j]:
                         card_cliente(row, "acoes_hoje", f"{indice}_{i}_{j}")
             if not cards:
-                st.info("Nenhum cliente prioritÃƒÂ¡rio para ligar agora.")
+                st.info("Nenhum cliente prioritário para ligar agora.")
 
-        with st.expander("OrÃƒÂ§amentos com 2 dias"):
+        with st.expander("Orçamentos com 2 dias"):
             if orc_2_dias.empty:
-                st.info("Nenhum orÃƒÂ§amento com 2 dias.")
+                st.info("Nenhum orçamento com 2 dias.")
             else:
-                renderizar_grid_orcamentos(orc_2_dias, co_num, co_cli, co_valor)
+                renderizar_cards_orcamentos_simples(orc_2_dias, co_num, co_cli, co_valor)
 
-        with st.expander("OrÃƒÂ§amentos urgentes com 3+ dias"):
+        with st.expander("Orçamentos urgentes com 3+ dias"):
             if orc_urgentes.empty:
-                st.info("Nenhum orÃƒÂ§amento urgente.")
+                st.info("Nenhum orçamento urgente.")
             else:
-                renderizar_grid_orcamentos(
+                renderizar_cards_orcamentos_simples(
                     orc_urgentes, co_num, co_cli, co_valor, incluir_acao=True
                 )
 
@@ -5095,16 +5117,16 @@ def renderizar():
             if atraso_recompra.empty:
                 st.info("Nenhum cliente em atraso de recompra.")
             else:
-                renderizar_grid_clientes_simples(atraso_recompra, "acoes_atraso")
+                renderizar_cards_clientes_simples(atraso_recompra)
 
         with st.expander("Retornos programados para hoje"):
             if retornos_hoje.empty:
                 st.info("Nenhum retorno programado para hoje.")
             else:
-                renderizar_grid_clientes_simples(retornos_hoje, "acoes_retornos")
+                renderizar_cards_clientes_simples(retornos_hoje)
 
-    if pagina == "Ã°Å¸â€˜â€˜ CEO":
-        st.subheader("Ã°Å¸â€˜â€˜ Painel CEO")
+    if pagina == "👑 CEO":
+        st.subheader("👑 Painel CEO")
 
         col_churn, col_perdidos, col_base = st.columns(3)
         with col_churn:
@@ -5117,54 +5139,54 @@ def renderizar():
         with st.expander("Como a taxa de churn foi calculada?"):
             st.markdown(
                 """
-                **FÃƒÂ³rmula**
+                **Fórmula**
 
-                `Taxa de churn = clientes em churn ÃƒÂ· clientes com ciclo conhecido Ãƒâ€” 100`
+                `Taxa de churn = clientes em churn ÷ clientes com ciclo conhecido × 100`
 
                 Um cliente entra em **churn estimado** quando:
 
-                - possui pelo menos duas compras, permitindo calcular seu intervalo mÃƒÂ©dio;
-                - estÃƒÂ¡ sem comprar hÃƒÂ¡ mais de duas vezes o seu intervalo mÃƒÂ©dio de recompra.
+                - possui pelo menos duas compras, permitindo calcular seu intervalo médio;
+                - está sem comprar há mais de duas vezes o seu intervalo médio de recompra.
 
-                **Exemplo:** se um cliente costuma comprar a cada 30 dias e estÃƒÂ¡ hÃƒÂ¡ mais
-                de 60 dias sem comprar, ele ÃƒÂ© considerado em churn. Clientes com apenas
-                uma compra nÃƒÂ£o entram na base, pois ainda nÃƒÂ£o possuem ciclo conhecido.
+                **Exemplo:** se um cliente costuma comprar a cada 30 dias e está há mais
+                de 60 dias sem comprar, ele é considerado em churn. Clientes com apenas
+                uma compra não entram na base, pois ainda não possuem ciclo conhecido.
                 """
             )
             st.write(
-                f"CÃƒÂ¡lculo atual: {qtd_churn} ÃƒÂ· {base_churn} Ãƒâ€” 100 = {taxa_churn:.1f}%"
+                f"Cálculo atual: {qtd_churn} ÷ {base_churn} × 100 = {taxa_churn:.1f}%"
                 if base_churn
-                else "Ainda nÃƒÂ£o hÃƒÂ¡ clientes com histÃƒÂ³rico suficiente para calcular o churn."
+                else "Ainda não há clientes com histórico suficiente para calcular o churn."
             )
 
         st.markdown(f"**Receita prevista:** **{fmt(clientes['faturamento'].sum())}**")
-        st.caption("Soma do faturamento total existente no relatÃƒÂ³rio de vendas importado. O perÃƒÂ­odo depende do arquivo enviado.")
+        st.caption("Soma do faturamento total existente no relatório de vendas importado. O período depende do arquivo enviado.")
         st.markdown(f"**Potencial mensal da carteira:** **{fmt(clientes['potencial_mensal'].sum())}**")
-        st.caption("MÃƒÂ©dia mensal de compras dos ÃƒÂºltimos 3 meses.")
-        st.markdown(f"**Venda possÃƒÂ­vel hoje:** **{fmt(prioridade['ticket_medio'].sum())}**")
-        st.caption("Soma do ticket mÃƒÂ©dio dos clientes classificados como QUENTE na aba Prioridade.")
-        st.markdown(f"**Potencial recuperÃƒÂ¡vel:** **{fmt(clientes['potencial_recuperavel'].sum())}**")
+        st.caption("Média mensal de compras dos últimos 3 meses.")
+        st.markdown(f"**Venda possível hoje:** **{fmt(prioridade['ticket_medio'].sum())}**")
+        st.caption("Soma do ticket médio dos clientes classificados como QUENTE na aba Prioridade.")
+        st.markdown(f"**Potencial recuperável:** **{fmt(clientes['potencial_recuperavel'].sum())}**")
         st.caption("Soma do potencial mensal dos clientes classificados como ATRASADO NA RECOMPRA ou CLIENTE INATIVO.")
-        st.markdown(f"**InadimplÃƒÂªncia real:** **{fmt(clientes['inadimplencia'].sum())}**")
+        st.markdown(f"**Inadimplência real:** **{fmt(clientes['inadimplencia'].sum())}**")
         renderizar_retencao_crescimento_ceo(
             indicadores_retencao, clientes, prioridade
         )
 
-    if pagina == "Ã°Å¸â€™Â° Financeiro CEO":
+    if pagina == "💰 Financeiro CEO":
         renderizar_financeiro_ceo(
             financeiro, contas_pagar, recebido_mes, pago_mes,
             mes_resultado, resultado_disponivel, clientes, clientes_churn
         )
         renderizar_financeiro_real(dados)
 
-    if pagina == "Ã°Å¸Å½Â¯ GestÃƒÂ£o Comercial":
+    if pagina == "🎯 Gestão Comercial":
         renderizar_gestao_comercial(dados)
 
-    if pagina == "Ã°Å¸â€œâ€° Churn":
-        st.subheader("Ã°Å¸â€œâ€° Clientes em churn")
+    if pagina == "📉 Churn":
+        st.subheader("📉 Clientes em churn")
         st.caption(
-            "Clientes com ciclo de recompra conhecido que estÃƒÂ£o hÃƒÂ¡ mais de duas vezes "
-            "o intervalo mÃƒÂ©dio sem comprar."
+            "Clientes com ciclo de recompra conhecido que estão há mais de duas vezes "
+            "o intervalo médio sem comprar."
         )
 
         col1, col2, col3 = st.columns(3)
@@ -5184,7 +5206,7 @@ def renderizar():
             len(churn_avancado["migrando"])
         )
         avancado[2].metric(
-            "RecuperaÃƒÂ§ÃƒÂµes histÃƒÂ³ricas",
+            "Recuperações históricas",
             churn_avancado["recuperados_historicos"],
             f"{churn_avancado['taxa_recuperacao_historica']:.1f}% da base recorrente"
         )
@@ -5194,11 +5216,11 @@ def renderizar():
         )
         st.caption(
             "O churn ponderado considera o faturamento dos clientes perdidos. "
-            "Clientes sazonais sÃƒÂ£o sinalizados separadamente por apresentarem ciclos irregulares."
+            "Clientes sazonais são sinalizados separadamente por apresentarem ciclos irregulares."
         )
         if not churn_avancado["tendencia_mensal"].empty:
-            st.markdown("#### EvoluÃƒÂ§ÃƒÂ£o mensal do churn")
-            tendencia = churn_avancado["tendencia_mensal"].set_index("MÃƒÂªs")
+            st.markdown("#### Evolução mensal do churn")
+            tendencia = churn_avancado["tendencia_mensal"].set_index("Mês")
             st.line_chart(tendencia)
         if not churn_avancado["migrando"].empty:
             st.markdown("#### Clientes migrando para churn")
@@ -5209,14 +5231,14 @@ def renderizar():
             migrando["potencial_mensal"] = migrando["potencial_mensal"].map(fmt)
             migrando = migrando.rename(columns={
                 "dias_sem_comprar": "Dias sem comprar",
-                "intervalo": "Ciclo mÃƒÂ©dio",
+                "intervalo": "Ciclo médio",
                 "potencial_mensal": "Potencial mensal",
-                "temperatura": "SituaÃƒÂ§ÃƒÂ£o",
+                "temperatura": "Situação",
             })
             st.dataframe(migrando, use_container_width=True, hide_index=True)
 
         if clientes_churn.empty:
-            st.success("Nenhum cliente estÃƒÂ¡ classificado em churn.")
+            st.success("Nenhum cliente está classificado em churn.")
         else:
             for _, r in clientes_churn.iterrows():
                 cliente_html = html_seguro(r["Cliente"])
@@ -5224,15 +5246,15 @@ def renderizar():
                 st.markdown(f"""
 <div style="background:white;padding:15px;border-radius:10px;margin-bottom:10px;border-left:6px solid #d62728;border-top:1px solid #ddd;border-right:1px solid #ddd;border-bottom:1px solid #ddd;">
 <b>{cliente_html}</b><br>
-ÃƒÅ¡ltima compra: <b>{ultima_compra}</b><br>
-EstÃƒÂ¡ hÃƒÂ¡ <b>{int(r['dias_sem_comprar'])} dias</b> sem comprar<br>
-Ciclo mÃƒÂ©dio: <b>{int(r['intervalo'])} dias</b><br>
+Última compra: <b>{ultima_compra}</b><br>
+Está há <b>{int(r['dias_sem_comprar'])} dias</b> sem comprar<br>
+Ciclo médio: <b>{int(r['intervalo'])} dias</b><br>
 Limite para churn: <b>{int(r['limite_churn_dias'])} dias</b><br>
-Passou do limite hÃƒÂ¡: <b>{int(r['dias_alem_limite'])} dias</b><br><br>
-Faturamento histÃƒÂ³rico: <b>{fmt_html(r['faturamento'])}</b><br>
-Ticket mÃƒÂ©dio: <b>{fmt_html(r['ticket_medio'])}</b><br>
+Passou do limite há: <b>{int(r['dias_alem_limite'])} dias</b><br><br>
+Faturamento histórico: <b>{fmt_html(r['faturamento'])}</b><br>
+Ticket médio: <b>{fmt_html(r['ticket_medio'])}</b><br>
 Potencial mensal em risco: <b>{fmt_html(r['potencial_mensal'])}</b><br>
-InadimplÃƒÂªncia: <b>{fmt_html(r['inadimplencia'])}</b>
+Inadimplência: <b>{fmt_html(r['inadimplencia'])}</b>
 </div>
 """, unsafe_allow_html=True)
                 itens_churn = r.get("itens_comprados", [])
@@ -5290,8 +5312,8 @@ InadimplÃƒÂªncia: <b>{fmt_html(r['inadimplencia'])}</b>
                 )
                 renderizar_criar_orcamento_sugerido(row_churn, chave_churn)
 
-    if pagina == "Ã°Å¸â€Â¥ Prioridade":
-        st.subheader("Ã°Å¸â€Â¥ Prioridade")
+    if pagina == "🔥 Prioridade":
+        st.subheader("🔥 Prioridade")
         if prioridade.empty:
             st.info("Nenhum cliente no timing ideal hoje.")
         cards = list(prioridade.iterrows())
@@ -5301,11 +5323,11 @@ InadimplÃƒÂªncia: <b>{fmt_html(r['inadimplencia'])}</b>
                 with cols[j]:
                     card_cliente(row, "prioridade", f"{indice}_{i}_{j}")
 
-    if pagina == "Ã°Å¸â€œâ€¹ Resumo":
-        st.subheader("Ã°Å¸â€œâ€¹ Resumo Comercial")
-        st.markdown(f"**Clientes para aÃƒÂ§ÃƒÂ£o:** **{len(resumo)}**")
+    if pagina == "📋 Resumo":
+        st.subheader("📋 Resumo Comercial")
+        st.markdown(f"**Clientes para ação:** **{len(resumo)}**")
         st.markdown(f"**Capacidade de venda do resumo:** **{fmt(resumo['ticket_medio'].sum())}**")
-        st.markdown(f"**Potencial recuperÃƒÂ¡vel:** **{fmt(resumo['potencial_recuperavel'].sum())}**")
+        st.markdown(f"**Potencial recuperável:** **{fmt(resumo['potencial_recuperavel'].sum())}**")
         cards = list(resumo.iterrows())
         for i in range(0, len(cards), 3):
             cols = st.columns(3)
@@ -5313,10 +5335,10 @@ InadimplÃƒÂªncia: <b>{fmt_html(r['inadimplencia'])}</b>
                 with cols[j]:
                     card_cliente(row, "resumo", f"{indice}_{i}_{j}")
 
-    if pagina == "Ã°Å¸â€œâ€ž OrÃƒÂ§amentos":
-        st.subheader("Ã°Å¸â€œâ€ž OrÃƒÂ§amentos em aberto para retorno")
+    if pagina == "📄 Orçamentos":
+        st.subheader("📄 Orçamentos em aberto para retorno")
         if orc_aberto.empty:
-            st.info("Nenhum orÃƒÂ§amento em aberto nos ÃƒÂºltimos 30 dias.")
+            st.info("Nenhum orçamento em aberto nos últimos 30 dias.")
         else:
             cards = list(orc_aberto.iterrows())
             for i in range(0, len(cards), 3):
@@ -5336,7 +5358,7 @@ InadimplÃƒÂªncia: <b>{fmt_html(r['inadimplencia'])}</b>
 
                         st.markdown(f"""
 <div style="background:white;padding:15px;border-radius:10px;margin-bottom:10px;border:1px solid #ddd;">
-<b>OrÃƒÂ§amento NÃ‚Âº {num_orc_html}</b><br>
+<b>Orçamento Nº {num_orc_html}</b><br>
 Cliente: <b>{cliente_orc_html}</b><br>
 Tempo no sistema: <b>{int(r['dias_no_sistema'])} dia(s)</b><br>
 Status: <b>{status_orc_html}</b><br>
@@ -5345,26 +5367,26 @@ Valor: <b>{valor_txt}</b>
 """, unsafe_allow_html=True)
 
                         if dados.get("origem") == "api" and str(r.get("_observacoes_interna", "")).strip():
-                            with st.expander("Ver histÃƒÂ³rico do GestÃƒÂ£oClick"):
+                            with st.expander("Ver histórico do GestãoClick"):
                                 st.text(str(r.get("_observacoes_interna", "")))
 
                         obs = st.text_area(
-                            "Nova observaÃƒÂ§ÃƒÂ£o" if dados.get("origem") == "api" else "ObservaÃƒÂ§ÃƒÂ£o",
+                            "Nova observação" if dados.get("origem") == "api" else "Observação",
                             value=st.session_state.observacoes_orc.get(num_orc, ""),
                             key=chave_obs
                         )
 
                         if st.button(
-                            f"Ã°Å¸â€™Â¾ Salvar observaÃƒÂ§ÃƒÂ£o {num_orc}",
+                            f"💾 Salvar observação {num_orc}",
                             key=f"salvar_obs_{orcamento_uid}"
                         ):
                             try:
                                 if not obs.strip():
-                                    raise RuntimeError("Digite uma observaÃƒÂ§ÃƒÂ£o antes de salvar.")
+                                    raise RuntimeError("Digite uma observação antes de salvar.")
                                 if dados.get("origem") == "api":
                                     orcamento_id = str(r.get("_orcamento_id") or "").strip()
                                     if not orcamento_id:
-                                        raise RuntimeError("ID interno do orÃƒÂ§amento nÃƒÂ£o encontrado.")
+                                        raise RuntimeError("ID interno do orçamento não encontrado.")
                                     st.session_state.alteracao_gestaoclick_pendente = {
                                         "tipo": "observacao_orcamento",
                                         "numero": num_orc,
@@ -5377,9 +5399,9 @@ Valor: <b>{valor_txt}</b>
                                 else:
                                     st.session_state.observacoes_orc[num_orc] = obs
                                     salvar_observacao_orcamento(num_orc, r[co_cli], obs)
-                                    st.success("ObservaÃƒÂ§ÃƒÂ£o salva no Google Sheets.")
+                                    st.success("Observação salva no Google Sheets.")
                             except Exception as e:
-                                st.error(f"NÃƒÂ£o foi possÃƒÂ­vel salvar a observaÃƒÂ§ÃƒÂ£o: {e}")
+                                st.error(f"Não foi possível salvar a observação: {e}")
 
                         pendente = st.session_state.alteracao_gestaoclick_pendente
                         if (
@@ -5388,18 +5410,18 @@ Valor: <b>{valor_txt}</b>
                             pendente.get("orcamento_id") == orcamento_id
                         ):
                             st.warning(
-                                "Confirme a alteraÃƒÂ§ÃƒÂ£o no GestÃƒÂ£oClick.\n\n"
-                                f"OrÃƒÂ§amento: {num_orc}\n\n"
+                                "Confirme a alteração no GestãoClick.\n\n"
+                                f"Orçamento: {num_orc}\n\n"
                                 f"Cliente: {pendente['cliente']}\n\n"
-                                f"Nova observaÃƒÂ§ÃƒÂ£o: {pendente['observacao']}"
+                                f"Nova observação: {pendente['observacao']}"
                             )
                             confirmado = st.checkbox(
-                                "Revisei os dados e autorizo a gravaÃƒÂ§ÃƒÂ£o no GestÃƒÂ£oClick.",
+                                "Revisei os dados e autorizo a gravação no GestãoClick.",
                                 key=f"confirmar_gc_{orcamento_uid}"
                             )
                             col_confirmar, col_cancelar = st.columns(2)
                             if col_confirmar.button(
-                                "Confirmar gravaÃƒÂ§ÃƒÂ£o",
+                                "Confirmar gravação",
                                 key=f"executar_gc_{orcamento_uid}",
                                 disabled=not confirmado,
                                 type="primary"
@@ -5416,11 +5438,11 @@ Valor: <b>{valor_txt}</b>
                                     st.session_state.observacoes_orc[num_orc] = ""
                                     st.session_state.alteracao_gestaoclick_pendente = None
                                     st.success(
-                                        "AlteraÃƒÂ§ÃƒÂ£o confirmada e gravada no GestÃƒÂ£oClick."
+                                        "Alteração confirmada e gravada no GestãoClick."
                                     )
                                     st.rerun()
                                 except Exception as e:
-                                    st.error(f"Falha ao gravar no GestÃƒÂ£oClick: {e}")
+                                    st.error(f"Falha ao gravar no GestãoClick: {e}")
                             if col_cancelar.button(
                                 "Cancelar",
                                 key=f"cancelar_gc_{orcamento_uid}"
@@ -5428,27 +5450,27 @@ Valor: <b>{valor_txt}</b>
                                 st.session_state.alteracao_gestaoclick_pendente = None
                                 st.rerun()
 
-    if pagina == "Ã°Å¸Â§Â  GestÃƒÂ£o":
-        st.subheader("Ã°Å¸Â§Â  GestÃƒÂ£o")
+    if pagina == "🧠 Gestão":
+        st.subheader("🧠 Gestão")
         st.markdown(f"**Clientes analisados:** **{len(clientes)}**")
         st.markdown(f"**Clientes em prioridade:** **{len(prioridade)}**")
         st.markdown(f"**Clientes no resumo:** **{len(resumo)}**")
         st.markdown(f"**Potencial mensal da carteira:** **{fmt(clientes['potencial_mensal'].sum())}**")
-        st.markdown(f"**Potencial recuperÃƒÂ¡vel:** **{fmt(clientes['potencial_recuperavel'].sum())}**")
-        st.markdown(f"**InadimplÃƒÂªncia total:** **{fmt(clientes['inadimplencia'].sum())}**")
+        st.markdown(f"**Potencial recuperável:** **{fmt(clientes['potencial_recuperavel'].sum())}**")
+        st.markdown(f"**Inadimplência total:** **{fmt(clientes['inadimplencia'].sum())}**")
         st.markdown(f"**Taxa de churn estimada:** **{taxa_churn:.1f}%**")
         st.caption(f"Clientes em churn: {qtd_churn} | Base analisada: {base_churn}")
 
-    if pagina == "Ã¢Å“â€¦ Qualidade":
+    if pagina == "✅ Qualidade":
         renderizar_qualidade_dados(dados)
 
-    if pagina == "Ã°Å¸â€œÅ  Base":
-        st.subheader("Ã°Å¸â€œÅ  Base completa")
+    if pagina == "📊 Base":
+        st.subheader("📊 Base completa")
         acoes = ["Todas"] + sorted(clientes["acao_ia"].unique().tolist())
         temperaturas = ["Todas"] + sorted(clientes["temperatura"].unique().tolist())
         col1, col2 = st.columns(2)
         with col1:
-            filtro_acao = st.selectbox("Filtrar por aÃƒÂ§ÃƒÂ£o sugerida", acoes, key="filtro_base_acao")
+            filtro_acao = st.selectbox("Filtrar por ação sugerida", acoes, key="filtro_base_acao")
         with col2:
             filtro_temp = st.selectbox("Filtrar por temperatura", temperaturas, key="filtro_base_temp")
 
@@ -5463,7 +5485,7 @@ Valor: <b>{valor_txt}</b>
             cols = st.columns(3)
             for j, (_, r) in enumerate(cards[i:i+3]):
                 with cols[j]:
-                    estrela = "Ã¢Â­Â Cliente estratÃƒÂ©gico<br>" if r["cliente_estrategico"] else ""
+                    estrela = "⭐ Cliente estratégico<br>" if r["cliente_estrategico"] else ""
                     cliente_html = html_seguro(r["Cliente"])
                     temperatura_html = html_seguro(r["temperatura"])
                     risco_html = html_seguro(r["risco_inadimplencia"])
@@ -5475,35 +5497,35 @@ Valor: <b>{valor_txt}</b>
 Temperatura: <b>{temperatura_html}</b><br>
 Score comercial: <b>{int(r['score_comercial'])}/100</b><br>
 Faturamento: <b>{fmt_html(r['faturamento'])}</b><br>
-Ticket mÃƒÂ©dio: <b>{fmt_html(r['ticket_medio'])}</b><br>
+Ticket médio: <b>{fmt_html(r['ticket_medio'])}</b><br>
 Potencial mensal: <b>{fmt_html(r['potencial_mensal'])}</b><br>
-Potencial recuperÃƒÂ¡vel: <b>{fmt_html(r['potencial_recuperavel'])}</b><br>
+Potencial recuperável: <b>{fmt_html(r['potencial_recuperavel'])}</b><br>
 Compras: <b>{int(r['qtd_compras'])}</b><br>
-Intervalo mÃƒÂ©dio: <b>{int(r['intervalo'])} dias</b><br>
-ÃƒÅ¡ltima compra: <b>{r['ultima_compra'].strftime('%d/%m/%Y')}</b><br>
+Intervalo médio: <b>{int(r['intervalo'])} dias</b><br>
+Última compra: <b>{r['ultima_compra'].strftime('%d/%m/%Y')}</b><br>
 Dias sem comprar: <b>{int(r['dias_sem_comprar'])}</b><br>
-OrÃƒÂ§amentos em aberto: <b>{int(r['orcamentos_em_aberto'])}</b><br>
-InadimplÃƒÂªncia: <b>{fmt_html(r['inadimplencia'])}</b><br>
-Score de risco: <b>{int(r['score_risco'])}/100 Ã¢â‚¬â€ {risco_html}</b><br>
-RecomendaÃƒÂ§ÃƒÂ£o: <b>{acao_html}</b>
+Orçamentos em aberto: <b>{int(r['orcamentos_em_aberto'])}</b><br>
+Inadimplência: <b>{fmt_html(r['inadimplencia'])}</b><br>
+Score de risco: <b>{int(r['score_risco'])}/100 — {risco_html}</b><br>
+Recomendação: <b>{acao_html}</b>
 </div>
 """, unsafe_allow_html=True)
                     cliente_uid = chave_widget(identificador_cliente(r, f"base_{i}_{j}"))
-                    with st.expander(f"Ver itens comprados e orÃƒÂ§ados - {r['Cliente']} #{cliente_uid[-6:]}"):
+                    with st.expander(f"Ver itens comprados e orçados - {r['Cliente']} #{cliente_uid[-6:]}"):
                         renderizar_lista_itens(
                             "Itens comprados",
                             r.get("itens_comprados", [])
                         )
                         renderizar_lista_itens(
-                            "Itens orÃƒÂ§ados",
+                            "Itens orçados",
                             r.get("itens_orcados", [])
                         )
 
-    if pagina == "Ã¢Å“â€°Ã¯Â¸Â Resumo E-mail":
-        st.subheader("Ã¢Å“â€°Ã¯Â¸Â Resumo para E-mail")
+    if pagina == "✉️ Resumo E-mail":
+        st.subheader("✉️ Resumo para E-mail")
         st.caption(
-            "Resumo diÃƒÂ¡rio e acionÃƒÂ¡vel para a equipe: indicadores, prioridades, "
-            "orÃƒÂ§amentos urgentes, churn e plano do dia."
+            "Resumo diário e acionável para a equipe: indicadores, prioridades, "
+            "orçamentos urgentes, churn e plano do dia."
         )
         texto_email = gerar_texto_email(
             prioridade, orc_aberto, clientes, clientes_churn,
@@ -5518,11 +5540,11 @@ RecomendaÃƒÂ§ÃƒÂ£o: <b>{acao_html}</b>
             "text/plain"
         )
 
-    if pagina == "Ã°Å¸â€œÂ§ RelatÃƒÂ³rio Comercial":
-        st.subheader("Ã°Å¸â€œÂ§ RelatÃƒÂ³rio Comercial")
+    if pagina == "📧 Relatório Comercial":
+        st.subheader("📧 Relatório Comercial")
         st.caption(
-            "RelatÃƒÂ³rio executivo completo com perÃƒÂ­odo analisado, indicadores, carteira, "
-            "prioridades, churn, orÃƒÂ§amentos, inadimplÃƒÂªncia, plano de aÃƒÂ§ÃƒÂ£o e metodologia."
+            "Relatório executivo completo com período analisado, indicadores, carteira, "
+            "prioridades, churn, orçamentos, inadimplência, plano de ação e metodologia."
         )
         pdf = gerar_pdf(
             prioridade, orc_aberto, clientes, clientes_churn,
@@ -5533,7 +5555,7 @@ RecomendaÃƒÂ§ÃƒÂ£o: <b>{acao_html}</b>
             nome_pdf = f"Relatorio_Comercial_Executivo_{datetime.now():%d_%m_%Y}.pdf"
             st.markdown(
                 link_download_bytes(
-                    "Ã°Å¸â€œâ€ž Baixar RelatÃƒÂ³rio Executivo em PDF",
+                    "📄 Baixar Relatório Executivo em PDF",
                     pdf,
                     nome_pdf,
                     "application/pdf",
@@ -5541,39 +5563,39 @@ RecomendaÃƒÂ§ÃƒÂ£o: <b>{acao_html}</b>
                 unsafe_allow_html=True
             )
         else:
-            st.warning("PDF indisponÃƒÂ­vel. Verifique se 'reportlab' estÃƒÂ¡ no requirements.txt.")
+            st.warning("PDF indisponível. Verifique se 'reportlab' está no requirements.txt.")
 
 opcoes_menu_crm = [
-    "AÃƒÂ§ÃƒÂµes de Hoje",
-    "Ã°Å¸â€˜â€˜ CEO",
-    "Ã°Å¸â€™Â° Financeiro CEO",
-    "Ã°Å¸Å½Â¯ GestÃƒÂ£o Comercial",
-    "Ã°Å¸â€œâ€° Churn",
-    "Ã°Å¸â€Â¥ Prioridade",
-    "Ã°Å¸â€œâ€¹ Resumo",
-    "Ã°Å¸â€œâ€ž OrÃƒÂ§amentos",
-    "Ã°Å¸Â§Â  GestÃƒÂ£o",
-    "Ã¢Å“â€¦ Qualidade",
-    "Ã°Å¸â€œÅ  Base",
-    "Ã¢Å“â€°Ã¯Â¸Â Resumo E-mail",
-    "Ã°Å¸â€œÂ§ RelatÃƒÂ³rio Comercial",
+    "Ações de Hoje",
+    "👑 CEO",
+    "💰 Financeiro CEO",
+    "🎯 Gestão Comercial",
+    "📉 Churn",
+    "🔥 Prioridade",
+    "📋 Resumo",
+    "📄 Orçamentos",
+    "🧠 Gestão",
+    "✅ Qualidade",
+    "📊 Base",
+    "✉️ Resumo E-mail",
+    "📧 Relatório Comercial",
 ]
 if "pagina_atual_crm" not in st.session_state:
-    st.session_state.pagina_atual_crm = "Ã°Å¸â€˜â€˜ CEO"
+    st.session_state.pagina_atual_crm = "👑 CEO"
 if "abrir_resumo_diario" not in st.session_state:
     st.session_state.abrir_resumo_diario = False
 if "abrir_geracao_orcamentos" not in st.session_state:
     st.session_state.abrir_geracao_orcamentos = False
 if "resumo_diario_secao" not in st.session_state:
-    st.session_state.resumo_diario_secao = "InÃƒÂ­cio"
-opcoes_paginas_crm = opcoes_menu_crm + ["Resumo DiÃƒÂ¡rio", "GeraÃƒÂ§ÃƒÂ£o de OrÃƒÂ§amentos"]
+    st.session_state.resumo_diario_secao = "Início"
+opcoes_paginas_crm = opcoes_menu_crm + ["Resumo Diário", "Geração de Orçamentos"]
 if st.session_state.pagina_atual_crm not in opcoes_paginas_crm:
-    st.session_state.pagina_atual_crm = "Ã°Å¸â€˜â€˜ CEO"
+    st.session_state.pagina_atual_crm = "👑 CEO"
 
-with st.sidebar.expander("Ã°Å¸â€œÅ  CRM Inteligente", expanded=True):
-    pagina_radio_atual = st.session_state.get("menu_lateral_crm", "Ã°Å¸â€˜â€˜ CEO")
+with st.sidebar.expander("📊 CRM Inteligente", expanded=True):
+    pagina_radio_atual = st.session_state.get("menu_lateral_crm", "👑 CEO")
     if pagina_radio_atual not in opcoes_menu_crm:
-        pagina_radio_atual = "Ã°Å¸â€˜â€˜ CEO"
+        pagina_radio_atual = "👑 CEO"
     pagina_selecionada = st.radio(
         "Abas",
         opcoes_menu_crm,
@@ -5593,16 +5615,16 @@ with st.sidebar.expander("Ã°Å¸â€œÅ  CRM Inteligente", expanded=True):
     elif not st.session_state.abrir_resumo_diario and not st.session_state.abrir_geracao_orcamentos:
         st.session_state.pagina_atual_crm = pagina_selecionada
 
-with st.sidebar.expander("Resumo DiÃƒÂ¡rio", expanded=False):
+with st.sidebar.expander("Resumo Diário", expanded=False):
     secoes_resumo = [
-        "InÃƒÂ­cio",
+        "Início",
         "Fila de prioridades",
         "Buscar cliente/produtos",
-        "AÃƒÂ§ÃƒÂµes rÃƒÂ¡pidas",
-        "VisÃƒÂ£o de gestÃƒÂ£o",
+        "Ações rápidas",
+        "Visão de gestão",
     ]
     secao_resumo_lateral = st.radio(
-        "SeÃƒÂ§ÃƒÂµes",
+        "Seções",
         secoes_resumo,
         index=secoes_resumo.index(st.session_state.resumo_diario_secao)
         if st.session_state.resumo_diario_secao in secoes_resumo else 0,
@@ -5615,58 +5637,58 @@ with st.sidebar.expander("Resumo DiÃƒÂ¡rio", expanded=False):
     elif secao_resumo_lateral != secao_anterior_resumo:
         st.session_state.resumo_diario_secao = secao_resumo_lateral
         st.session_state.abrir_resumo_diario = True
-        st.session_state.pagina_atual_crm = "Resumo DiÃƒÂ¡rio"
+        st.session_state.pagina_atual_crm = "Resumo Diário"
         st.session_state.menu_lateral_resumo_anterior = secao_resumo_lateral
         st.rerun()
-    if st.button("Abrir Resumo DiÃƒÂ¡rio", use_container_width=True):
+    if st.button("Abrir Resumo Diário", use_container_width=True):
         st.session_state.resumo_diario_secao = secao_resumo_lateral
         st.session_state.abrir_resumo_diario = True
         st.session_state.abrir_geracao_orcamentos = False
-        st.session_state.pagina_atual_crm = "Resumo DiÃƒÂ¡rio"
+        st.session_state.pagina_atual_crm = "Resumo Diário"
         st.rerun()
 
-with st.sidebar.expander("GeraÃƒÂ§ÃƒÂ£o de OrÃƒÂ§amentos", expanded=False):
-    st.caption("Criar orÃƒÂ§amento via API do GestÃƒÂ£oClick.")
-    if st.button("Abrir GeraÃƒÂ§ÃƒÂ£o de OrÃƒÂ§amentos", use_container_width=True):
+with st.sidebar.expander("Geração de Orçamentos", expanded=False):
+    st.caption("Criar orçamento via API do GestãoClick.")
+    if st.button("Abrir Geração de Orçamentos", use_container_width=True):
         st.session_state.abrir_geracao_orcamentos = True
         st.session_state.abrir_resumo_diario = False
-        st.session_state.pagina_atual_crm = "GeraÃƒÂ§ÃƒÂ£o de OrÃƒÂ§amentos"
+        st.session_state.pagina_atual_crm = "Geração de Orçamentos"
         st.rerun()
 
 pagina = st.session_state.pagina_atual_crm
 
-with st.sidebar.expander("ConfiguraÃƒÂ§ÃƒÂµes", expanded=False):
-    st.info("Fonte automÃƒÂ¡tica: API GestÃƒÂ£oClick")
+with st.sidebar.expander("Configurações", expanded=False):
+    st.info("Fonte automática: API GestãoClick")
     st.markdown("**Supabase**")
     st.caption(
-        "Planejado para observaÃƒÂ§ÃƒÂµes, jÃƒÂ¡ liguei, retornos programados, histÃƒÂ³rico do cliente "
-        "e usuÃƒÂ¡rios/vendedoras."
+        "Planejado para observações, já liguei, retornos programados, histórico do cliente "
+        "e usuários/vendedoras."
     )
-    if st.button("Testar conexÃƒÂ£o Supabase", use_container_width=True):
+    if st.button("Testar conexão Supabase", use_container_width=True):
         try:
             resultados_supabase = testar_conexao_supabase()
             ok = [r for r in resultados_supabase if str(r[1]) in {"200", "206"}]
             if len(ok) == len(resultados_supabase):
-                st.success("Supabase conectado e tabelas acessÃƒÂ­veis.")
+                st.success("Supabase conectado e tabelas acessíveis.")
             else:
-                st.warning("Supabase respondeu, mas hÃƒÂ¡ tabelas pendentes ou sem permissÃƒÂ£o.")
+                st.warning("Supabase respondeu, mas há tabelas pendentes ou sem permissão.")
             st.dataframe(
                 pd.DataFrame(resultados_supabase, columns=["Tabela", "Status", "Detalhe"]),
                 use_container_width=True,
                 hide_index=True,
             )
         except Exception as e:
-            st.error(f"NÃƒÂ£o foi possÃƒÂ­vel conectar ao Supabase: {e}")
+            st.error(f"Não foi possível conectar ao Supabase: {e}")
     st.markdown("**Watidy / WhatsApp**")
     if watidy_configurado():
         cfg_watidy = credenciais_watidy()
         st.success(f"Watidy configurado: {cfg_watidy['base_url']}{cfg_watidy['send_path']}")
     else:
-        st.warning("Watidy nÃƒÂ£o configurado. O CRM abrirÃƒÂ¡ rascunho no WhatsApp.")
-modo_dados = "API GestÃƒÂ£oClick"
+        st.warning("Watidy não configurado. O CRM abrirá rascunho no WhatsApp.")
+modo_dados = "API GestãoClick"
 
-if modo_dados == "API GestÃƒÂ£oClick":
-    with st.sidebar.expander("ConexÃƒÂ£o GestÃƒÂ£oClick", expanded=False):
+if modo_dados == "API GestãoClick":
+    with st.sidebar.expander("Conexão GestãoClick", expanded=False):
         access_padrao, secret_padrao = credenciais_gestaoclick()
         tokens_no_secrets = credenciais_gestaoclick_no_secrets()
         if "gc_access_token" not in st.session_state:
@@ -5677,25 +5699,25 @@ if modo_dados == "API GestÃƒÂ£oClick":
             st.session_state.gc_usuario_nome = USUARIO_PADRAO
 
         if tokens_no_secrets:
-            st.success("Tokens do GestÃƒÂ£oClick carregados pelo secrets.")
+            st.success("Tokens do GestãoClick carregados pelo secrets.")
         else:
             st.error(
-                "Tokens do GestÃƒÂ£oClick nÃƒÂ£o encontrados no secrets. "
+                "Tokens do GestãoClick não encontrados no secrets. "
                 "Configure st.secrets['gestaoclick'] para conectar."
             )
         st.text_input(
-            "Nome de quem registra as observaÃƒÂ§ÃƒÂµes",
+            "Nome de quem registra as observações",
             key="gc_usuario_nome"
         )
 
         if st.button("Conectar e carregar lojas"):
             try:
-                with st.spinner("Conectando ao GestÃƒÂ£oClick..."):
+                with st.spinner("Conectando ao GestãoClick..."):
                     st.session_state.gestaoclick_lojas = api_gestaoclick().stores()
                     st.session_state.gestaoclick_usuarios = []
-                st.success("ConexÃƒÂ£o realizada.")
+                st.success("Conexão realizada.")
             except Exception as e:
-                st.error(f"Erro de conexÃƒÂ£o: {e}")
+                st.error(f"Erro de conexão: {e}")
 
     lojas = st.session_state.gestaoclick_lojas
     if lojas:
@@ -5735,19 +5757,19 @@ if modo_dados == "API GestÃƒÂ£oClick":
         fim_padrao = date.today()
         inicio_padrao = fim_padrao - timedelta(days=90)
         inicio_api = st.sidebar.date_input(
-            "Vendas e orÃƒÂ§amentos desde",
+            "Vendas e orçamentos desde",
             value=inicio_padrao,
             max_value=fim_padrao
         )
         fim_api = st.sidebar.date_input(
-            "AtÃƒÂ©",
+            "Até",
             value=fim_padrao,
             min_value=inicio_api,
             max_value=fim_padrao
         )
         st.sidebar.caption(
-            "PadrÃƒÂ£o comercial: ÃƒÂºltimos 90 dias para ganhar velocidade. "
-            "A visÃƒÂ£o financeira permanece separada e considera os dados financeiros disponÃƒÂ­veis."
+            "Padrão comercial: últimos 90 dias para ganhar velocidade. "
+            "A visão financeira permanece separada e considera os dados financeiros disponíveis."
         )
 
         with st.sidebar.expander("Metas e premissas financeiras"):
@@ -5793,7 +5815,7 @@ if modo_dados == "API GestÃƒÂ£oClick":
                 )
                 st.session_state.metas_vendedor[vendedor_nome_config] = meta_vendedor
             saldo_inicial = st.number_input(
-                "Saldo bancÃƒÂ¡rio inicial",
+                "Saldo bancário inicial",
                 value=float(st.session_state.get("saldo_inicial", 0.0)),
                 step=1000.0
             )
@@ -5811,13 +5833,13 @@ if modo_dados == "API GestÃƒÂ£oClick":
                 step=1000.0
             )
             despesas_fixas = st.number_input(
-                "Despesas fixas mensais nÃƒÂ£o lanÃƒÂ§adas",
+                "Despesas fixas mensais não lançadas",
                 min_value=0.0,
                 value=float(st.session_state.get("despesas_fixas", 0.0)),
                 step=1000.0
             )
             outras_despesas = st.number_input(
-                "Outras despesas mensais nÃƒÂ£o lanÃƒÂ§adas",
+                "Outras despesas mensais não lançadas",
                 min_value=0.0,
                 value=float(st.session_state.get("outras_despesas", 0.0)),
                 step=500.0
@@ -5828,10 +5850,10 @@ if modo_dados == "API GestÃƒÂ£oClick":
             st.session_state.despesas_fixas = despesas_fixas
             st.session_state.outras_despesas = outras_despesas
 
-        if st.sidebar.button("Atualizar dados do GestÃƒÂ£oClick", type="primary"):
+        if st.sidebar.button("Atualizar dados do GestãoClick", type="primary"):
             try:
                 with st.spinner(
-                    "Buscando vendas, orÃƒÂ§amentos, contas a receber, contas a pagar e movimentos do mÃƒÂªs..."
+                    "Buscando vendas, orçamentos, contas a receber, contas a pagar e movimentos do mês..."
                 ):
                     st.session_state.clientes_ligados = carregar_clientes_ligados_hoje()
                     carregar_persistencia_crm()
@@ -5856,17 +5878,17 @@ if modo_dados == "API GestÃƒÂ£oClick":
                             "custo_ferramentas_mensal": custo_ferramentas_mensal,
                         }
                     )
-                st.success("Dados atualizados pelo GestÃƒÂ£oClick.")
+                st.success("Dados atualizados pelo GestãoClick.")
                 st.rerun()
             except Exception as e:
-                st.error(f"Erro ao buscar dados do GestÃƒÂ£oClick: {e}")
+                st.error(f"Erro ao buscar dados do GestãoClick: {e}")
     else:
         st.sidebar.info("Conecte a API para selecionar uma loja.")
 
 else:
     st.sidebar.header("Importar arquivos")
-    vendas_file = st.sidebar.file_uploader("RelatÃƒÂ³rio de Vendas", type=["xlsx"])
-    orc_file = st.sidebar.file_uploader("RelatÃƒÂ³rio de OrÃƒÂ§amentos", type=["xlsx"])
+    vendas_file = st.sidebar.file_uploader("Relatório de Vendas", type=["xlsx"])
+    orc_file = st.sidebar.file_uploader("Relatório de Orçamentos", type=["xlsx"])
     contas_file = st.sidebar.file_uploader("Contas a Receber", type=["xlsx"])
 
     with st.sidebar.expander("Premissas CAC"):
@@ -5897,7 +5919,7 @@ else:
 
     if st.sidebar.button("Analisar arquivos", type="primary"):
         if not vendas_file or not orc_file or not contas_file:
-            st.error("Envie os trÃƒÂªs arquivos.")
+            st.error("Envie os três arquivos.")
             st.stop()
 
         try:
@@ -5921,6 +5943,5 @@ if st.session_state.dados_processados is not None:
     renderizar()
 else:
     st.info(
-        "Conecte o GestÃƒÂ£oClick ou use os arquivos Excel na barra lateral."
+        "Conecte o GestãoClick ou use os arquivos Excel na barra lateral."
     )
-
