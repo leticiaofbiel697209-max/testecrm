@@ -517,12 +517,42 @@ def extrair_itens_registro(registro):
 def percentual_comissao_texto(valor):
     texto = str(valor or "").strip().replace(",", ".")
     match = re.search(r"(\d+(?:\.\d+)?)\s*%", texto)
-    if not match:
-        return None
-    pct = float(match.group(1))
+    if match:
+        pct = float(match.group(1))
+    else:
+        texto_num = re.sub(r"[^0-9.\-]", "", texto)
+        if not texto_num:
+            return None
+        try:
+            pct = float(texto_num)
+        except Exception:
+            return None
+        if 0 < pct <= 0.05:
+            pct = pct * 100
     if 0.25 <= pct <= 5:
         return pct
     return None
+
+def buscar_percentual_comissao(objeto):
+    candidatos = []
+    campos_preferidos = [
+        "tipo", "Tipo", "comissao", "comissão", "percentual_comissao",
+        "percentual comissão", "percentual", "perc_comissao", "comissao_percentual"
+    ]
+    for campo in campos_preferidos:
+        valor = buscar_valor_recursivo(objeto, [campo])
+        if valor:
+            candidatos.append(valor)
+    if isinstance(objeto, dict):
+        for chave, valor in objeto.items():
+            chave_norm = norm(chave)
+            if any(palavra in chave_norm for palavra in ["tipo", "comiss", "percent", "perc"]):
+                candidatos.append(valor)
+    for valor in candidatos:
+        pct = percentual_comissao_texto(valor)
+        if pct is not None:
+            return pct, str(valor)
+    return None, ""
 
 def extrair_itens_comissao(registro):
     itens = []
@@ -576,12 +606,17 @@ def extrair_itens_comissao(registro):
                     ["tipo", "Tipo", "comissao", "comissão", "percentual_comissao"]
                 )
             )
-            percentual = percentual_comissao_texto(tipo)
+            percentual, tipo_detectado = buscar_percentual_comissao(wrapper)
+            if percentual is None:
+                percentual, tipo_detectado = buscar_percentual_comissao(detalhe)
+            if percentual is None:
+                percentual = percentual_comissao_texto(tipo)
+                tipo_detectado = tipo
             itens.append({
                 "produto": str(nome).strip(),
                 "quantidade": quantidade,
                 "valor_total": valor_total,
-                "tipo": str(tipo or "").strip(),
+                "tipo": str(tipo_detectado or tipo or "").strip(),
                 "percentual": percentual,
             })
     return itens
@@ -2132,7 +2167,7 @@ def calcular_comissoes(dados, referencia=None):
                 "Tipo": item.get("tipo", ""),
             }
             if pct is None:
-                pendentes.append({**linha_base, "Motivo": "Percentual não cadastrado no Tipo"})
+                pendentes.append({**linha_base, "Motivo": "Percentual nao cadastrado no Tipo", "Tipo detectado": str(item.get("tipo", ""))})
                 continue
             comissao = base * float(pct) / 100
             linhas.append({
@@ -5171,6 +5206,20 @@ def renderizar_comissao(dados):
         tabela["Comissao"] = tabela["Comissao"].map(fmt)
         tabela = tabela.rename(columns={"Comissao": "Comissão"})
         st.dataframe(tabela, use_container_width=True, hide_index=True)
+
+    st.markdown("#### Potencial por vendedora")
+    if itens.empty:
+        st.info("Nenhuma comissão potencial encontrada.")
+    else:
+        potencial = itens.groupby("Vendedor").agg(
+            Vendas=("Valor", "sum"),
+            Comissao_potencial=("Comissão", "sum"),
+            Itens=("Produto", "count"),
+        ).reset_index()
+        potencial["Vendas"] = potencial["Vendas"].map(fmt)
+        potencial["Comissao_potencial"] = potencial["Comissao_potencial"].map(fmt)
+        potencial = potencial.rename(columns={"Comissao_potencial": "Comissão potencial"})
+        st.dataframe(potencial, use_container_width=True, hide_index=True)
 
     with st.expander("Itens com percentual de comissão", expanded=True):
         if itens.empty:
