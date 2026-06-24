@@ -1721,9 +1721,15 @@ def calcular_gestao_comercial(dados, configuracao):
     custo_col = achar_coluna(vendas, ["custo"])
     vendedor_col = achar_coluna(vendas, ["vendedor"])
     fim = pd.Timestamp(dados.get("periodo_fim", date.today()))
-    inicio_mes = fim.replace(day=1)
+    if pd.isna(fim):
+        fim = pd.Timestamp(date.today())
+    inicio_mes, fim_meta = ciclo_meta_comercial(fim)
+    inicio_mes = pd.Timestamp(inicio_mes).normalize()
+    fim_meta = pd.Timestamp(fim_meta).normalize()
+    fim = pd.Timestamp(fim).normalize()
+    fim_realizado = min(fim, fim_meta)
     vendas_mes = vendas[
-        (vendas[data_col] >= inicio_mes) & (vendas[data_col] <= fim)
+        (vendas[data_col] >= inicio_mes) & (vendas[data_col] <= fim_realizado)
     ].copy()
     if not vendedor_col:
         vendas_mes["Vendedor"] = "Sem vendedor"
@@ -1754,8 +1760,8 @@ def calcular_gestao_comercial(dados, configuracao):
     ).fillna(0)
     resumo["Distancia_meta"] = (resumo["Meta"] - resumo["Faturamento"]).clip(lower=0)
 
-    dias_decorridos = max(1, int((fim_realizado.normalize() - inicio_mes.normalize()).days) + 1)
-    dias_mes = max(1, int((fim_meta.normalize() - inicio_mes.normalize()).days) + 1)
+    dias_decorridos = max(1, int((fim_realizado - inicio_mes).days) + 1)
+    dias_mes = max(1, int((fim_meta - inicio_mes).days) + 1)
     projecao = float(vendas_mes[valor_col].sum()) / dias_decorridos * dias_mes
 
     conversao = 0.0
