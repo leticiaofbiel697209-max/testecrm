@@ -1,5 +1,5 @@
-"""Formatadores compartilhados."""
+"""Geração de PDF comercial/CEO."""
 
-from app import fmt, fmt_html, html_seguro, norm
+from app import gerar_pdf, link_download_bytes
 
-__all__ = ["fmt", "fmt_html", "html_seguro", "norm"]
+__all__ = ["gerar_pdf", "link_download_bytes"]
