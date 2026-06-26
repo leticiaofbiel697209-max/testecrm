@@ -1019,9 +1019,17 @@ def garantir_abas_crm():
             ws = planilha.add_worksheet(
                 title=nome, rows=1000, cols=max(10, len(cabecalhos))
             )
-            ws.append_row(cabecalhos)
+            try:
+                ws.append_row(cabecalhos)
+            except Exception as e:
+                if not erro_apenas_response_200(e):
+                    raise
         elif not ws.row_values(1):
-            ws.append_row(cabecalhos)
+            try:
+                ws.append_row(cabecalhos)
+            except Exception as e:
+                if not erro_apenas_response_200(e):
+                    raise
         resultado[nome] = ws
     return resultado
 
@@ -1053,7 +1061,15 @@ def cliente_corresponde(registro, cliente_id, cliente):
     return norm(registro.get("cliente", "")) == norm(cliente)
 
 def erro_apenas_response_200(exc):
-    return "<Response [200]>" in str(exc) or "Response [200]" in str(exc)
+    texto = str(exc)
+    resposta = getattr(exc, "response", None)
+    status = getattr(resposta, "status_code", None)
+    return (
+        status == 200
+        or "<Response [200]>" in texto
+        or "Response [200]" in texto
+        or "status_code=200" in texto
+    )
 
 def salvar_contato_realizado(
     cliente_id, cliente, vendedor, observacao="", origem="prioridade", status="já liguei"
@@ -2888,9 +2904,10 @@ def renderizar_historico_cliente(row):
 
     st.markdown("**Orçamentos em aberto**")
     numeros = row.get("numeros_orcamentos", [])
-    st.write(", ".join(str(numero) for numero in numeros[-5:])) if numeros else st.caption(
-        "Nenhum orçamento em aberto."
-    )
+    if numeros:
+        st.write(", ".join(str(numero) for numero in numeros[-5:]))
+    else:
+        st.caption("Nenhum orçamento em aberto.")
 
     st.markdown("**Últimos contatos**")
     if contatos:
