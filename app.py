@@ -1061,7 +1061,7 @@ def cliente_corresponde(registro, cliente_id, cliente):
     return norm(registro.get("cliente", "")) == norm(cliente)
 
 def erro_apenas_response_200(exc):
-    texto = str(exc)
+    texto = f"{exc} {exc!r}"
     resposta = getattr(exc, "response", None)
     status = getattr(resposta, "status_code", None)
     return (
@@ -1085,13 +1085,15 @@ def salvar_contato_realizado(
         "observacao": str(observacao or ""),
         "origem": str(origem),
     }
-    abas = garantir_abas_crm()
+    st.session_state.contatos_realizados.append(registro)
+    st.session_state.clientes_ligados.add(str(cliente))
+
     try:
+        abas = garantir_abas_crm()
         abas["ContatosRealizados"].append_row(list(registro.values()))
     except Exception as e:
         if not erro_apenas_response_200(e):
-            raise
-    st.session_state.contatos_realizados.append(registro)
+            st.warning(f"Contato registrado na tela, mas não consegui salvar na planilha: {e}")
 
     if observacao:
         try:
@@ -1121,13 +1123,13 @@ def salvar_observacao_cliente(cliente_id, cliente, vendedor, observacao):
         "hora": agora.strftime("%H:%M:%S"),
         "observacao": str(observacao).strip(),
     }
-    abas = garantir_abas_crm()
+    st.session_state.observacoes_clientes.append(registro)
     try:
+        abas = garantir_abas_crm()
         abas["ObservacoesClientes"].append_row(list(registro.values()))
     except Exception as e:
         if not erro_apenas_response_200(e):
-            raise
-    st.session_state.observacoes_clientes.append(registro)
+            st.warning(f"Observação registrada na tela, mas não consegui salvar na planilha: {e}")
     return registro
 
 def agendar_retorno_cliente(
@@ -1146,13 +1148,13 @@ def agendar_retorno_cliente(
         "criado_em": agora.strftime("%d/%m/%Y %H:%M:%S"),
         "concluido_em": "",
     }
-    abas = garantir_abas_crm()
+    st.session_state.retornos_programados.append(registro)
     try:
+        abas = garantir_abas_crm()
         abas["RetornosProgramados"].append_row(list(registro.values()))
     except Exception as e:
         if not erro_apenas_response_200(e):
-            raise
-    st.session_state.retornos_programados.append(registro)
+            st.warning(f"Retorno registrado na tela, mas não consegui salvar na planilha: {e}")
     return registro
 
 def concluir_retornos_do_cliente(cliente_id, cliente, data_limite):
@@ -2741,6 +2743,9 @@ def enriquecer_regras_prioridade(clientes, orc_aberto):
     return base
 
 def montar_prioridade(clientes):
+    if "contato_recente" not in clientes.columns:
+        clientes = clientes.copy()
+        clientes["contato_recente"] = False
     elegivel = (
         clientes["retornos_hoje"].gt(0)
         | clientes["orc_ligar"].gt(0)
