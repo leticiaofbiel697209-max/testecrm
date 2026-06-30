@@ -13,6 +13,7 @@ import urllib.request
 import uuid
 import smtplib
 from email.message import EmailMessage
+from pathlib import Path
 import gspread
 from google.oauth2.service_account import Credentials
 
@@ -29,8 +30,16 @@ try:
 except Exception:
     REPORTLAB_OK = False
 
-st.set_page_config(layout="wide")
-st.title("📊 CRM Inteligente - Nível CEO")
+BASE_DIR = Path(__file__).resolve().parent
+LOGO_PATH = BASE_DIR / "assets" / "logo_novaprint.png"
+
+st.set_page_config(page_title="CRM Inteligente Novaprint", layout="wide")
+
+topo_logo, topo_titulo = st.columns([1, 6])
+if LOGO_PATH.exists():
+    topo_logo.image(str(LOGO_PATH), width=120)
+topo_titulo.title("CRM Inteligente - Nível CEO")
+topo_titulo.caption("Novaprint Brasil | Comercial, financeiro, retenção e rotina das vendedoras em um só lugar.")
 
 if "dados_processados" not in st.session_state:
     st.session_state.dados_processados = None
@@ -3865,6 +3874,46 @@ def renderizar_grid_resumo(df, modo):
             with cols[j]:
                 renderizar_card_resumo(row, indice, modo)
 
+def prioridade_crm_para_resumo(prioridade):
+    if prioridade.empty:
+        return pd.DataFrame()
+    linhas = []
+    for indice, row in prioridade.iterrows():
+        cliente = texto_valido(row.get("Cliente", ""), "Cliente sem nome")
+        motivo = texto_valido(row.get("motivo_prioridade", ""))
+        acao = texto_valido(row.get("acao_ia", ""), "Entrar em contato")
+        produto = ""
+        itens = row.get("itens_comprados", [])
+        if isinstance(itens, list) and itens:
+            produto = texto_valido(itens[0])
+        oferta = motivo or acao or "Prioridade comercial do CRM"
+        linhas.append({
+            "Categoria": "CRM PRIORIDADE",
+            "Score": row.get("score_comercial", 0),
+            "Cliente": cliente,
+            "Cliente ID": row.get("Cliente ID", ""),
+            "_cliente_id": row.get("Cliente ID", ""),
+            "Vendedor": row.get("Vendedor", "Sem vendedor"),
+            "Vendedor ID": row.get("Vendedor ID", ""),
+            "Orçamento": "",
+            "Valor": row.get("ticket_medio", 0),
+            "Ticket médio": row.get("ticket_medio", 0),
+            "Produto": produto,
+            "Intervalo": row.get("intervalo", ""),
+            "Dias sem comprar": row.get("dias_sem_comprar", ""),
+            "Último contato": "Hoje" if row.get("ja_ligou_hoje", False) else "",
+            "Motivo": motivo,
+            "Oferta": oferta,
+            "Ação": acao,
+            "_oportunidade_quente": str(row.get("temperatura", "")).find("QUENTE") >= 0,
+            "_prioridade": row.get("score_prioridade_dia", row.get("score_comercial", 0)),
+            "_budget_id": "",
+            "_origem_prioridade": "crm",
+            "_linha_origem": indice,
+        })
+    resultado = pd.DataFrame(linhas)
+    return resultado.sort_values(["_prioridade", "Valor"], ascending=[False, False])
+
 def renderizar_busca_cliente_produtos(dados, vendedor="Todas"):
     clientes = dados.get("clientes", pd.DataFrame()).copy()
     vendedor_col = achar_coluna(clientes, ["vendedor"])
@@ -4136,6 +4185,22 @@ def renderizar_resumo_diario(dados):
     vendedor = st.selectbox("Vendedor", vendedores, key="resumo_diario_vendedor")
     oportunidades, counters = montar_resumo_diario_oportunidades(dados, vendedor)
     ofertas = montar_ofertas_recompra(dados, vendedor)
+    prioridade_crm = montar_prioridade(dados.get("clientes", pd.DataFrame()))
+    if vendedor and vendedor != "Todas" and not prioridade_crm.empty:
+        prioridade_crm = prioridade_crm[
+            prioridade_crm["Vendedor"].astype(str).str.strip() == vendedor
+        ].copy()
+    prioridade_resumo = prioridade_crm_para_resumo(prioridade_crm)
+    if not prioridade_resumo.empty:
+        oportunidades = pd.concat(
+            [prioridade_resumo, oportunidades],
+            ignore_index=True,
+            sort=False,
+        ).sort_values(["_prioridade", "Valor"], ascending=[False, False])
+        counters["calls"] = counters.get("calls", 0) + len(prioridade_resumo)
+        counters["hot"] = counters.get("hot", 0) + int(
+            prioridade_resumo.get("_oportunidade_quente", pd.Series(dtype=bool)).sum()
+        )
 
     cols = st.columns(5)
     cols[0].metric("Ligações hoje", counters["calls"] + len(ofertas))
@@ -4150,11 +4215,16 @@ def renderizar_resumo_diario(dados):
     secao = st.session_state.resumo_diario_secao
 
     if secao == "Início":
-        st.markdown("#### Ofertas de recompra para hoje")
+        st.markdown("#### Prioridades e ofertas para hoje")
         st.caption(
-            "Essas ofertas vêm do ciclo real de compra do cliente e aparecem já na entrada do Resumo Diário."
+            "A tela inicial reúne a prioridade do CRM com ofertas de recompra calculadas pelo ciclo real de compra."
         )
-        renderizar_grid_resumo(ofertas, "inicio_oferta")
+        inicio = pd.concat(
+            [prioridade_resumo.head(12), ofertas.head(18)],
+            ignore_index=True,
+            sort=False,
+        )
+        renderizar_grid_resumo(inicio, "inicio")
 
     if secao == "Fila de prioridades":
         st.markdown("#### Fila de prioridades")
@@ -4228,164 +4298,6 @@ def renderizar_resumo_diario(dados):
             hide_index=True,
         )
     return
-
-    st.subheader("Resumo Diário")
-    st.caption("Gestão diária dos orçamentos e prioridades das vendedoras.")
-    orcamentos = dados.get("orcamentos_todos", pd.DataFrame())
-    if orcamentos.empty:
-        st.info("Carregue os dados da API para montar o resumo diário.")
-        return
-    vendedor_col = achar_coluna(orcamentos, ["vendedor"])
-    vendedores = ["Todas"]
-    if vendedor_col:
-        vendedores += sorted(
-            nome for nome in orcamentos[vendedor_col].dropna().astype(str).str.strip().unique()
-            if nome and nome.lower() not in {"nan", "none"}
-        )
-    col_filtro, col_visao = st.columns(2)
-    vendedor = col_filtro.selectbox("Vendedor", vendedores, key="resumo_diario_vendedor")
-    visao = col_visao.radio(
-        "Visão",
-        ["Visão do vendedor", "Visão de gestão"],
-        horizontal=True,
-        key="resumo_diario_visao"
-    )
-    oportunidades, counters = montar_resumo_diario_oportunidades(dados, vendedor)
-    cols = st.columns(5)
-    cols[0].metric("Ligações hoje", counters["calls"])
-    cols[1].metric("Oportunidades quentes", counters["hot"])
-    cols[2].metric("Retornos hoje", counters["returns"])
-    cols[3].metric("Sem contato", counters["untouched"])
-    cols[4].metric("Vencendo", counters["expiring"])
-
-    if oportunidades.empty:
-        st.success("Nenhuma prioridade encontrada para os filtros selecionados.")
-        return
-
-    filtro = st.radio(
-        "Mostrar",
-        ["Todas", "Oportunidades quentes", "Retornos hoje"],
-        horizontal=True,
-        key="resumo_diario_filtro"
-    )
-    exibicao = oportunidades.copy()
-    if filtro == "Oportunidades quentes":
-        exibicao = exibicao[exibicao["Categoria"] == "QUENTE"]
-    elif filtro == "Retornos hoje":
-        exibicao = exibicao[exibicao["Categoria"] == "RETORNO"]
-
-    if visao == "Visão de gestão":
-        st.markdown("#### Desempenho por vendedor")
-        gestao = oportunidades.groupby("Vendedor").agg(
-            Prioridades=("Cliente", "count"),
-            Ligacoes=("Categoria", lambda s: int(s.isin(["RETORNO", "SEM CONTATO", "VENCENDO"]).sum())),
-            Quentes=("Categoria", lambda s: int((s == "QUENTE").sum())),
-            Retornos=("Categoria", lambda s: int((s == "RETORNO").sum())),
-            Valor=("Valor", "sum"),
-        ).reset_index()
-        gestao["Valor"] = gestao["Valor"].map(fmt)
-        st.dataframe(gestao, use_container_width=True, hide_index=True)
-
-    tabela = exibicao[[
-        "Categoria", "Score", "Cliente", "Vendedor", "Orçamento",
-        "Valor", "Último contato", "Motivo", "Ação"
-    ]].copy()
-    tabela["Valor"] = tabela["Valor"].map(fmt)
-    st.markdown("#### Fila de prioridades")
-    st.dataframe(tabela, use_container_width=True, hide_index=True)
-
-    st.markdown("#### Ações rápidas")
-    st.caption("Use os cartões abaixo para registrar contato ou programar retorno sem sair do Resumo Diário.")
-    for indice, row in exibicao.head(30).iterrows():
-        cliente = str(row.get("Cliente", "Cliente sem nome"))
-        vendedor_card = str(row.get("Vendedor", "Sem vendedor"))
-        cliente_id = str(row.get("_cliente_id", ""))
-        chave = chave_widget(
-            f"resumo_diario_{row.get('_budget_id', '')}_{cliente}_{indice}"
-        )
-        with st.expander(
-            f"{row.get('Categoria', 'PRIORIDADE')} | {cliente} | {fmt(row.get('Valor', 0))}"
-        ):
-            st.write(f"**Vendedor:** {vendedor_card}")
-            st.write(f"**Orçamento:** {row.get('Orçamento', '')}")
-            st.write(f"**Motivo:** {row.get('Motivo', '')}")
-            st.write(f"**Ação sugerida:** {row.get('Ação', '')}")
-
-            historico_contatos = [
-                c for c in st.session_state.contatos_realizados
-                if cliente_corresponde(c, cliente_id, cliente)
-            ][-3:]
-            historico_retornos = [
-                r for r in st.session_state.retornos_programados
-                if cliente_corresponde(r, cliente_id, cliente)
-            ][-3:]
-            if historico_contatos or historico_retornos:
-                with st.expander("Ver histórico curto"):
-                    for contato in historico_contatos:
-                        st.write(
-                            f"{contato.get('data', '')} {contato.get('hora', '')} - "
-                            f"{contato.get('status', '')} - {contato.get('observacao', '')}"
-                        )
-                    for retorno in historico_retornos:
-                        st.write(
-                            f"Retorno {retorno.get('data_retorno', '')} - "
-                            f"{retorno.get('motivo', '')} - {retorno.get('status', '')}"
-                        )
-
-            observacao = st.text_input(
-                "Observação do contato",
-                key=f"resumo_diario_obs_{chave}"
-            )
-            col_ligar, col_retorno = st.columns(2)
-            if col_ligar.button(
-                "Já Liguei",
-                key=f"resumo_diario_liguei_{chave}",
-                type="primary",
-                use_container_width=True,
-            ):
-                try:
-                    salvar_contato_realizado(
-                        cliente_id, cliente, vendedor_card, observacao, "resumo_diario"
-                    )
-                    st.success("Contato registrado. Esse cliente sai das prioridades de hoje.")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Não foi possível registrar o contato: {e}")
-
-            with col_retorno:
-                data_retorno = st.date_input(
-                    "Data do retorno",
-                    value=date.today() + timedelta(days=1),
-                    min_value=date.today(),
-                    key=f"resumo_diario_data_retorno_{chave}"
-                )
-                motivo = st.text_input(
-                    "Motivo",
-                    value="Retorno comercial",
-                    key=f"resumo_diario_motivo_{chave}"
-                )
-                observacao_retorno = st.text_area(
-                    "Observação do retorno",
-                    key=f"resumo_diario_obs_retorno_{chave}"
-                )
-                if st.button(
-                    "Agendar Retorno",
-                    key=f"resumo_diario_agendar_{chave}",
-                    use_container_width=True,
-                ):
-                    try:
-                        agendar_retorno_cliente(
-                            cliente_id,
-                            cliente,
-                            vendedor_card,
-                            data_retorno,
-                            motivo,
-                            observacao_retorno,
-                        )
-                        st.success(f"Retorno agendado para {data_retorno:%d/%m/%Y}.")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Não foi possível agendar o retorno: {e}")
 
 def card_cliente(row, tipo, posicao):
     atraso = int(row["dias_sem_comprar"] - row["intervalo"])
