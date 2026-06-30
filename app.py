@@ -1293,6 +1293,22 @@ def numero_coluna(s):
 
     return s.apply(converter)
 
+def texto_valido(valor, padrao=""):
+    if valor is None:
+        return padrao
+    try:
+        if pd.isna(valor):
+            return padrao
+    except Exception:
+        pass
+    texto = str(valor).strip()
+    if texto.lower() in {"", "nan", "none", "nat", "<na>"}:
+        return padrao
+    return texto
+
+def valor_informado(valor):
+    return texto_valido(valor) != ""
+
 def status_orcamento(dias):
     if dias <= 1:
         return "✅ Aceitável"
@@ -3329,8 +3345,8 @@ def montar_resumo_diario_oportunidades(dados, vendedor="Todas"):
     linhas = []
     counters = {"calls": 0, "hot": 0, "returns": 0, "untouched": 0, "expiring": 0}
     for _, row in orcamentos.iterrows():
-        cliente = str(row.get(co_cli, "Cliente sem nome")).strip()
-        cliente_id = str(row.get(co_cli_id, "")).strip() if co_cli_id else ""
+        cliente = texto_valido(row.get(co_cli, ""), "Cliente sem nome")
+        cliente_id = texto_valido(row.get(co_cli_id, "")) if co_cli_id else ""
         chave = row["_cliente_chave_resumo"]
         data_orc = pd.to_datetime(row[co_data], errors="coerce")
         idade = int((hoje - data_orc.normalize()).days) if pd.notna(data_orc) else 0
@@ -3388,18 +3404,23 @@ def montar_resumo_diario_oportunidades(dados, vendedor="Todas"):
         if not categorias:
             continue
         prioridade, categoria, motivo, acao = max(categorias, key=lambda valor: valor[0])
+        numero_orcamento = texto_valido(row.get(co_num, ""))
+        oferta_orcamento = motivo
+        if numero_orcamento:
+            oferta_orcamento = f"{motivo}. Acompanhar orçamento {numero_orcamento}."
         if categoria in ("RETORNO", "SEM CONTATO", "VENCENDO"):
             counters["calls"] += 1
         linhas.append({
             "Categoria": categoria,
             "Score": score,
             "Cliente": cliente,
-            "Vendedor": row["_vendedor_resumo"],
-            "Orçamento": str(row.get(co_num, "")),
+            "Vendedor": texto_valido(row["_vendedor_resumo"], "Sem vendedor"),
+            "Orçamento": numero_orcamento,
             "Valor": total,
             "Idade": idade,
             "Último contato": "Hoje" if ja_ligou else f"{idade} dias sem contato",
             "Motivo": motivo,
+            "Oferta": oferta_orcamento,
             "Ação": acao,
             "_oportunidade_quente": oportunidade_quente,
             "_prioridade": prioridade,
@@ -3416,6 +3437,7 @@ def montar_resumo_diario_oportunidades(dados, vendedor="Todas"):
     return oportunidades, counters
 
 def renderizar_botao_liguei_resumo(cliente_id, cliente, vendedor, oferta, chave):
+    oferta = texto_valido(oferta, "acompanhamento comercial")
     observacao_padrao = (
         f"Contato feito em {date.today():%d/%m/%Y} oferecendo: {oferta}"
         if oferta else ""
@@ -3474,10 +3496,11 @@ def renderizar_agendamento_resumo(cliente_id, cliente, vendedor, chave):
 
 def texto_email_resumo(cliente, vendedor, oferta, row=None):
     row = row if row is not None else {}
-    produto = str(row.get("Produto", "") or "").strip()
-    orcamento = str(row.get("Orçamento", "") or "").strip()
-    categoria = str(row.get("Categoria", "") or "").strip()
-    motivo = str(row.get("Motivo", oferta) or oferta)
+    oferta = texto_valido(oferta, "acompanhamento comercial")
+    produto = texto_valido(row.get("Produto", ""))
+    orcamento = texto_valido(row.get("Orçamento", ""))
+    categoria = texto_valido(row.get("Categoria", ""))
+    motivo = texto_valido(row.get("Motivo", oferta), oferta)
     valor = row.get("Valor", row.get("Ticket médio", 0))
     intervalo = row.get("Intervalo", "")
     dias = row.get("Dias sem comprar", row.get("Idade", ""))
@@ -3490,7 +3513,7 @@ def texto_email_resumo(cliente, vendedor, oferta, row=None):
         detalhe_valor = f" no valor de {valor_txt}" if valor_txt else ""
         urgencia = (
             f"Vi que ele já está há {dias} dias em aberto, então quis te chamar antes de perdermos o timing."
-            if str(dias).strip() else
+            if valor_informado(dias) else
             "Quis te chamar para ver se ficou alguma dúvida ou se posso te ajudar a seguir com ele."
         )
         corpo = (
@@ -3617,8 +3640,9 @@ def renderizar_email_resumo(cliente, vendedor, oferta, chave, row=None):
 
 def texto_whatsapp_resumo(cliente, vendedor, oferta, row=None):
     row = row if row is not None else {}
-    produto = str(row.get("Produto", "") or "").strip()
-    orcamento = str(row.get("Orçamento", "") or "").strip()
+    oferta = texto_valido(oferta, "acompanhamento comercial")
+    produto = texto_valido(row.get("Produto", ""))
+    orcamento = texto_valido(row.get("Orçamento", ""))
     valor = row.get("Valor", row.get("Ticket médio", 0))
     dias = row.get("Dias sem comprar", row.get("Idade", ""))
     intervalo = row.get("Intervalo", "")
@@ -3626,7 +3650,7 @@ def texto_whatsapp_resumo(cliente, vendedor, oferta, row=None):
 
     if orcamento:
         trecho_valor = f" ({valor_txt})" if valor_txt else ""
-        trecho_tempo = f" Vi que ele está há {dias} dias em aberto." if str(dias).strip() else ""
+        trecho_tempo = f" Vi que ele está há {dias} dias em aberto." if valor_informado(dias) else ""
         return (
             f"Oi, tudo bem? Aqui é {vendedor}, da Novaprint.\n\n"
             f"Passando para ver se conseguimos avançar com o orçamento {orcamento}{trecho_valor}."
@@ -3637,10 +3661,10 @@ def texto_whatsapp_resumo(cliente, vendedor, oferta, row=None):
     if produto:
         trecho_ciclo = (
             f"Vi aqui que vocês costumam comprar {produto} a cada {intervalo} dias. "
-            if str(intervalo).strip() else
+            if valor_informado(intervalo) else
             f"Vi aqui uma oportunidade de reposição de {produto}. "
         )
-        trecho_tempo = f"Já faz {dias} dias desde a última compra. " if str(dias).strip() else ""
+        trecho_tempo = f"Já faz {dias} dias desde a última compra. " if valor_informado(dias) else ""
         return (
             f"Oi, tudo bem? Aqui é {vendedor}, da Novaprint.\n\n"
             f"{trecho_ciclo}{trecho_tempo}"
@@ -3705,8 +3729,8 @@ def renderizar_whatsapp_resumo(cliente, vendedor, oferta, chave, row=None):
             st.caption("Informe o WhatsApp do cliente para gerar a conversa.")
 
 def renderizar_criar_orcamento_sugerido(row, chave):
-    produto = str(row.get("Produto", "") or "").strip()
-    cliente_id = str(row.get("Cliente ID", row.get("_cliente_id", "")) or "").strip()
+    produto = texto_valido(row.get("Produto", ""))
+    cliente_id = texto_valido(row.get("Cliente ID", row.get("_cliente_id", "")))
     if not produto or not cliente_id:
         return
     with st.expander("Criar orçamento"):
@@ -3765,18 +3789,25 @@ def renderizar_criar_orcamento_sugerido(row, chave):
                 st.error(f"Não foi possível criar o orçamento: {e}")
 
 def renderizar_card_resumo(row, indice, modo="prioridade"):
-    cliente = str(row.get("Cliente", "Cliente sem nome"))
-    vendedor = str(row.get("Vendedor", "Sem vendedor"))
-    cliente_id = str(row.get("_cliente_id", row.get("Cliente ID", "")))
+    cliente = texto_valido(row.get("Cliente", ""), "Cliente sem nome")
+    vendedor = texto_valido(row.get("Vendedor", ""), "Sem vendedor")
+    cliente_id = texto_valido(row.get("_cliente_id", row.get("Cliente ID", "")))
     valor = row.get("Valor", row.get("Ticket médio", 0))
-    oferta = str(row.get("Oferta", row.get("Motivo", "")))
-    categoria = str(row.get("Categoria", "Recompra")).strip()
+    oferta = texto_valido(row.get("Oferta", row.get("Motivo", "")))
+    categoria = texto_valido(row.get("Categoria", ""), "Recompra")
     score = row.get("Score", "")
-    orcamento = str(row.get("Orçamento", "") or "").strip()
-    acao = str(row.get("Ação", "") or "").strip()
-    produto = str(row.get("Produto", "") or "").strip()
+    orcamento = texto_valido(row.get("Orçamento", ""))
+    acao = texto_valido(row.get("Ação", ""))
+    produto = texto_valido(row.get("Produto", ""))
     dias = row.get("Dias sem comprar", row.get("Idade", ""))
     intervalo = row.get("Intervalo", "")
+    if not oferta:
+        if orcamento:
+            oferta = f"Acompanhar retorno do orçamento {orcamento}"
+        elif produto:
+            oferta = f"Oferecer reposição de {produto}"
+        else:
+            oferta = "Acompanhamento comercial do cliente"
     chave = chave_widget(
         f"resumo_{modo}_{row.get('_budget_id', '')}_{cliente_id}_{cliente}_{indice}"
     )
@@ -3785,11 +3816,11 @@ def renderizar_card_resumo(row, indice, modo="prioridade"):
         detalhes.append(f"Produto sugerido: <b>{html_seguro(produto)}</b>")
     if orcamento:
         detalhes.append(f"Orçamento: <b>{html_seguro(orcamento)}</b>")
-    if dias != "":
+    if valor_informado(dias):
         detalhes.append(f"Dias em atenção: <b>{html_seguro(dias)}</b>")
-    if intervalo != "":
+    if valor_informado(intervalo):
         detalhes.append(f"Ciclo médio: <b>{html_seguro(intervalo)} dias</b>")
-    if score != "":
+    if valor_informado(score):
         detalhes.append(f"Score: <b>{html_seguro(score)}</b>")
     if acao:
         detalhes.append(f"Ação sugerida: <b>{html_seguro(acao)}</b>")
