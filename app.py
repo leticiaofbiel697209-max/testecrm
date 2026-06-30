@@ -2422,11 +2422,11 @@ def processar_dataframes(vendas, orc, contas):
     orc_aberto["dias_no_sistema"] = (hoje - orc_aberto[co_data]).dt.days
     orc_aberto["acao_recomendada_orcamento"] = orc_aberto["dias_no_sistema"].apply(status_orcamento)
 
-    orc_count = orc_aberto.groupby(co_cli)[co_num].count()
-    clientes["orcamentos_em_aberto"] = clientes["Cliente"].map(orc_count).fillna(0)
+    orc_count = orc_aberto.groupby("_cliente_chave")[co_num].count()
+    clientes["orcamentos_em_aberto"] = clientes["Cliente ID"].map(orc_count).fillna(0)
 
-    orc_nums = orc_aberto.groupby(co_cli)[co_num].apply(lambda x: list(x.astype(str)))
-    clientes["numeros_orcamentos"] = clientes["Cliente"].map(orc_nums).apply(lambda x: x if isinstance(x, list) else [])
+    orc_nums = orc_aberto.groupby("_cliente_chave")[co_num].apply(lambda x: list(x.astype(str)))
+    clientes["numeros_orcamentos"] = clientes["Cliente ID"].map(orc_nums).apply(lambda x: x if isinstance(x, list) else [])
 
     if cc_status:
         contas_atraso = contas[
@@ -2717,9 +2717,16 @@ def enriquecer_regras_prioridade(clientes, orc_aberto):
         )
         orc = contagens.get(chave, {})
         retornos = retornos_pendentes_cliente(cliente_id, row["Cliente"])
+        tem_orcamento_aberto = (
+            orc.get("orc_ligar", 0)
+            + orc.get("orc_urgente", 0)
+            + orc.get("orc_risco", 0)
+            + int(float(row.get("orcamentos_em_aberto", 0) or 0))
+        ) > 0
         proximo_recompra = bool(
             row["intervalo"] > 0
             and row["dias_sem_comprar"] >= row["intervalo"] * 0.9
+            and not tem_orcamento_aberto
         )
         motivos = []
         if retornos:
