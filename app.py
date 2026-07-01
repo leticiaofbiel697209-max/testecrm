@@ -5,6 +5,7 @@ from io import BytesIO
 from html import escape
 import base64
 import json
+import math
 import re
 import time
 import urllib.error
@@ -647,7 +648,7 @@ def agregar_itens_cliente(df, chave_coluna, itens_coluna):
             for item in candidatos:
                 texto = str(item).strip()
                 chave = norm(texto)
-                if texto and chave not in vistos:
+                if texto_valido(texto) and chave not in vistos:
                     vistos.add(chave)
                     itens.append(texto)
         return itens
@@ -962,7 +963,8 @@ def enviar_whatsapp_watidy(numero, mensagem):
 
 def fmt(v):
     try:
-        return f"R${float(v):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        numero = numero_seguro(v, 0.0)
+        return f"R${numero:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
     except:
         return "R$0,00"
 
@@ -1317,6 +1319,32 @@ def texto_valido(valor, padrao=""):
 
 def valor_informado(valor):
     return texto_valido(valor) != ""
+
+def numero_seguro(valor, padrao=0.0):
+    try:
+        numero = float(valor)
+        if pd.isna(numero) or not math.isfinite(numero):
+            return padrao
+        return numero
+    except Exception:
+        return padrao
+
+def status_fechado_orcamento(status):
+    texto = norm(status).upper()
+    if not texto:
+        return False
+    bloqueados = (
+        "APROVADO|CANCELADO|CONFIRMADO|CONCRETIZADO|CONVERTIDO|"
+        "FINALIZADO|FATURADO|PERDIDO|RECUSADO|VENDIDO|FECHADO|"
+        "GANHO|REPROVADO"
+    )
+    return bool(re.search(bloqueados, texto))
+
+def status_liquidado_financeiro(status):
+    texto = norm(status).upper()
+    if not texto:
+        return False
+    return bool(re.search("LIQUIDADO|PAGO|QUITADO|RECEBIDO|BAIXADO", texto))
 
 def status_orcamento(dias):
     if dias <= 1:
@@ -2105,6 +2133,25 @@ def calcular_indicadores_retencao_ceo(
                     if anterior is not None:
                         cac_anterior = float(anterior["CAC"])
                         novos_anterior = int(anterior["Novos clientes"])
+                inicio_periodo = pd.to_datetime(periodo_inicio, errors="coerce")
+                fim_periodo = pd.to_datetime(periodo_fim, errors="coerce")
+                if pd.notna(inicio_periodo) and pd.notna(fim_periodo):
+                    primeira_compra = vendas_calc.groupby(chave_col)[data_col].min()
+                    novos_periodo = int(
+                        ((primeira_compra >= inicio_periodo) & (primeira_compra <= fim_periodo)).sum()
+                    )
+                    if novos_periodo:
+                        cac_atual = total_custos / novos_periodo
+                        novos_atual = novos_periodo
+                    dias_periodo = max(1, int((fim_periodo - inicio_periodo).days) + 1)
+                    inicio_anterior = inicio_periodo - pd.Timedelta(days=dias_periodo)
+                    fim_anterior = inicio_periodo - pd.Timedelta(days=1)
+                    novos_periodo_anterior = int(
+                        ((primeira_compra >= inicio_anterior) & (primeira_compra <= fim_anterior)).sum()
+                    )
+                    if novos_periodo_anterior:
+                        cac_anterior = total_custos / novos_periodo_anterior
+                        novos_anterior = novos_periodo_anterior
 
     return {
         "clientes": clientes_calc,
@@ -2398,7 +2445,9 @@ def processar_dataframes(vendas, orc, contas):
 
     clientes["intervalo"] = clientes["Cliente ID"].map(intervalo).fillna(0)
     clientes["dias_sem_comprar"] = (hoje - clientes["ultima_compra"]).dt.days
-    clientes["ticket_medio"] = clientes["faturamento"] / clientes["qtd_compras"]
+    clientes["ticket_medio"] = (
+        clientes["faturamento"] / clientes["qtd_compras"]
+    ).replace([float("inf"), float("-inf")], 0).fillna(0)
 
     data_limite_3m = hoje - pd.DateOffset(months=3)
     vendas_3m = vendas[vendas[cv_data] >= data_limite_3m].copy()
@@ -2415,14 +2464,8 @@ def processar_dataframes(vendas, orc, contas):
 
     orcamentos_todos = orc.copy()
     orc_aberto = orc.copy()
-    status_fechado = (
-        "CONCRETIZADO|CANCELADO|PERDIDO|REPROVADO|FATURADO|"
-        "FINALIZADO|FECHADO|VENDIDO"
-    )
     orc_aberto = orc_aberto[
-        ~orc_aberto[co_status].astype(str).str.upper().str.contains(
-            status_fechado, na=False, regex=True
-        )
+        ~orc_aberto[co_status].apply(status_fechado_orcamento)
     ]
     orc_aberto = orc_aberto[
         orc_aberto[co_data] >= (hoje - pd.Timedelta(days=90))
@@ -2437,14 +2480,41 @@ def processar_dataframes(vendas, orc, contas):
     orc_nums = orc_aberto.groupby("_cliente_chave")[co_num].apply(lambda x: list(x.astype(str)))
     clientes["numeros_orcamentos"] = clientes["Cliente ID"].map(orc_nums).apply(lambda x: x if isinstance(x, list) else [])
 
-    if cc_status:
-        contas_atraso = contas[
-            contas[cc_status].astype(str).str.upper().str.contains("ATRASADO|VENCIDO", na=False)
-        ].copy()
-    elif cc_venc:
-        contas_atraso = contas[contas[cc_venc] < hoje].copy()
+    status_descartado_movimento = orc[co_status].astype(str).str.upper().str.contains(
+        "CANCEL|PERDID|RECUSAD|REPROV", na=False, regex=True
+    )
+    orc_movimento = orc[
+        (~status_descartado_movimento)
+        & orc[co_data].notna()
+        & (orc[co_data] >= hoje - pd.Timedelta(days=7))
+    ].copy()
+    if not orc_movimento.empty:
+        ult_orc = orc_movimento.groupby("_cliente_chave")[co_data].max()
+        clientes["ultimo_movimento_comercial"] = clientes["Cliente ID"].map(ult_orc)
+        clientes["ultimo_movimento_comercial"] = clientes[
+            ["ultima_compra", "ultimo_movimento_comercial"]
+        ].max(axis=1)
+        clientes["dias_sem_comprar"] = (
+            hoje - clientes["ultimo_movimento_comercial"]
+        ).dt.days.fillna(clientes["dias_sem_comprar"]).clip(lower=0)
     else:
-        contas_atraso = contas.iloc[0:0].copy()
+        clientes["ultimo_movimento_comercial"] = clientes["ultima_compra"]
+
+    if cc_venc:
+        vencidas_por_data = contas[cc_venc].notna() & (contas[cc_venc] < hoje)
+    else:
+        vencidas_por_data = pd.Series(False, index=contas.index)
+    if cc_status:
+        status_atrasado = contas[cc_status].astype(str).str.upper().str.contains(
+            "ATRASADO|VENCIDO", na=False, regex=True
+        )
+        status_liquidado = contas[cc_status].apply(status_liquidado_financeiro)
+    else:
+        status_atrasado = pd.Series(False, index=contas.index)
+        status_liquidado = pd.Series(False, index=contas.index)
+    contas_atraso = contas[
+        (vencidas_por_data | status_atrasado) & (~status_liquidado)
+    ].copy()
 
     if cc_venc and not contas_atraso.empty:
         contas_atraso["dias_atraso"] = (hoje - contas_atraso[cc_venc]).dt.days.clip(lower=0)
@@ -3138,11 +3208,7 @@ def criar_orcamento_gestaoclick_api(
     return api.budget(criado["id"], loja_id)
 
 def status_aberto_resumo_diario(status):
-    bloqueados = (
-        "APROVADO|CANCELADO|CONFIRMADO|CONCRETIZADO|CONVERTIDO|"
-        "FINALIZADO|FATURADO|PERDIDO|RECUSADO|VENDIDO|FECHADO"
-    )
-    return not bool(re.search(bloqueados, str(status or "").upper()))
+    return not status_fechado_orcamento(status)
 
 def data_retorno_cliente(cliente_id, cliente):
     retornos = retornos_pendentes_cliente(cliente_id, cliente)
@@ -3156,7 +3222,7 @@ def data_retorno_cliente(cliente_id, cliente):
     return min(datas) if datas else pd.NaT
 
 def nome_item_resumo(texto):
-    texto = str(texto or "").strip()
+    texto = texto_valido(texto)
     if not texto:
         return ""
     return texto.split(" | ")[0].strip()
@@ -3750,7 +3816,7 @@ def renderizar_criar_orcamento_sugerido(row, chave):
     if not produto or not cliente_id:
         return
     with st.expander("Criar orçamento"):
-        valor_sugerido = float(row.get("_ultimo_valor_sugerido", 0) or 0)
+        valor_sugerido = numero_seguro(row.get("_ultimo_valor_sugerido", 0), 0.0)
         data_preco = row.get("_ultima_data_preco")
         qtd = st.number_input(
             "Quantidade",
