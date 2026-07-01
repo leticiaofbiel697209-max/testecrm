@@ -4,8 +4,10 @@ from datetime import date, datetime, timedelta
 from io import BytesIO
 from html import escape
 import base64
+import gzip
 import json
 import math
+import pickle
 import re
 import time
 import urllib.error
@@ -33,6 +35,8 @@ except Exception:
 
 BASE_DIR = Path(__file__).resolve().parent
 LOGO_PATH = BASE_DIR / "assets" / "logo_novaprint.png"
+SNAPSHOT_DIR = BASE_DIR / ".crm_cache"
+SNAPSHOT_PATH = SNAPSHOT_DIR / "ultima_base_processada.pkl"
 
 st.set_page_config(page_title="CRM Inteligente Novaprint", layout="wide")
 
@@ -66,6 +70,10 @@ if "persistencia_crm_carregada" not in st.session_state:
     st.session_state.persistencia_crm_carregada = False
 if "persistencia_crm_tentada" not in st.session_state:
     st.session_state.persistencia_crm_tentada = False
+if "snapshot_local_tentado" not in st.session_state:
+    st.session_state.snapshot_local_tentado = False
+if "snapshot_local_carregado" not in st.session_state:
+    st.session_state.snapshot_local_carregado = False
 
 NOME_PLANILHA = "CRM_HISTORICO_NOVAPRINT"
 USUARIO_PADRAO = "Gabriel"
@@ -334,7 +342,7 @@ class GestaoClickAPI:
             body=budget,
         ).get("data") or {}
 
-@st.cache_data(ttl=900, show_spinner=False)
+@st.cache_data(ttl=3600, show_spinner=False)
 def gestaoclick_cached_list_all(access_token, secret_token, path, params_json):
     params = json.loads(params_json or "{}")
     headers = {
@@ -692,6 +700,7 @@ SUPABASE_TABELAS_CRM = [
     "retornos_programados",
     "historico_cliente",
     "usuarios_vendedoras",
+    "crm_snapshots",
 ]
 
 def credenciais_supabase():
@@ -699,8 +708,8 @@ def credenciais_supabase():
         config = st.secrets.get("supabase", {})
         url = str(config.get("url", "")).strip().rstrip("/")
         key = str(
-            config.get("anon_key", "")
-            or config.get("service_role_key", "")
+            config.get("service_role_key", "")
+            or config.get("anon_key", "")
             or config.get("key", "")
         ).strip()
     except Exception:
@@ -733,6 +742,34 @@ def testar_conexao_supabase():
         except Exception as exc:
             resultados.append((tabela, "erro", str(exc)[:120]))
     return resultados
+
+def supabase_request(tabela, method="GET", query="", body=None, timeout=20, prefer=None):
+    url, key = credenciais_supabase()
+    if not url or not key:
+        raise RuntimeError("Configure [supabase] url e anon_key nos secrets.")
+    endpoint = f"{url}/rest/v1/{urllib.parse.quote(tabela)}{query}"
+    data = None
+    headers = {
+        "apikey": key,
+        "Authorization": f"Bearer {key}",
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+    }
+    if body is not None:
+        data = json.dumps(body, default=str).encode("utf-8")
+    if prefer:
+        headers["Prefer"] = prefer
+    request = urllib.request.Request(
+        endpoint,
+        data=data,
+        headers=headers,
+        method=method,
+    )
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        texto = response.read().decode("utf-8", errors="replace")
+        if not texto:
+            return None
+        return json.loads(texto)
 
 def credenciais_watidy():
     try:
@@ -1081,6 +1118,143 @@ def erro_apenas_response_200(exc):
         or "Response [200]" in texto
         or "status_code=200" in texto
     )
+
+def salvar_snapshot_local(dados):
+    if not dados:
+        return False
+    try:
+        SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
+        pacote = {
+            "salvo_em": datetime.now(),
+            "dados": dados,
+        }
+        with SNAPSHOT_PATH.open("wb") as arquivo:
+            pickle.dump(pacote, arquivo, protocol=pickle.HIGHEST_PROTOCOL)
+        return True
+    except Exception as e:
+        st.warning(f"NÃ£o consegui salvar a base local estÃ¡vel: {e}")
+        return False
+
+def serializar_snapshot(dados):
+    pacote = {
+        "versao": 1,
+        "salvo_em": datetime.now(),
+        "dados": dados,
+    }
+    bruto = pickle.dumps(pacote, protocol=pickle.HIGHEST_PROTOCOL)
+    return base64.b64encode(gzip.compress(bruto)).decode("ascii")
+
+def desserializar_snapshot(payload_base64):
+    bruto = base64.b64decode(str(payload_base64 or "").encode("ascii"))
+    try:
+        bruto = gzip.decompress(bruto)
+    except Exception:
+        pass
+    pacote = pickle.loads(bruto)
+    if isinstance(pacote, dict) and "dados" in pacote:
+        return pacote.get("dados")
+    return pacote
+
+def salvar_snapshot_supabase(dados):
+    if not dados:
+        return False
+    payload = {
+        "chave": "ultima_base",
+        "salvo_em": datetime.now().isoformat(),
+        "origem": str(dados.get("origem", "crm")),
+        "payload_base64": serializar_snapshot(dados),
+    }
+    try:
+        supabase_request(
+            "crm_snapshots",
+            method="POST",
+            query="?on_conflict=chave",
+            body=payload,
+            timeout=30,
+            prefer="resolution=merge-duplicates",
+        )
+        return True
+    except urllib.error.HTTPError as exc:
+        detalhe = exc.read().decode("utf-8", errors="replace")
+        st.warning(f"NÃ£o consegui salvar a base no Supabase: {exc.code} - {detalhe[:180]}")
+    except Exception as e:
+        st.warning(f"NÃ£o consegui salvar a base no Supabase: {e}")
+    return False
+
+def carregar_snapshot_supabase():
+    try:
+        registros = supabase_request(
+            "crm_snapshots",
+            method="GET",
+            query="?select=payload_base64,salvo_em&chave=eq.ultima_base&limit=1",
+            timeout=30,
+        )
+        if registros:
+            dados = desserializar_snapshot(registros[0].get("payload_base64"))
+            if isinstance(dados, dict):
+                return dados
+    except urllib.error.HTTPError as exc:
+        detalhe = exc.read().decode("utf-8", errors="replace")
+        st.warning(f"NÃ£o consegui carregar a base do Supabase: {exc.code} - {detalhe[:180]}")
+    except Exception as e:
+        st.warning(f"NÃ£o consegui carregar a base do Supabase: {e}")
+    return None
+
+def idade_snapshot_supabase():
+    try:
+        registros = supabase_request(
+            "crm_snapshots",
+            method="GET",
+            query="?select=salvo_em&chave=eq.ultima_base&limit=1",
+            timeout=12,
+        )
+        if registros:
+            salvo_em = pd.to_datetime(registros[0].get("salvo_em"), errors="coerce")
+            if pd.notna(salvo_em):
+                return salvo_em.strftime("%d/%m/%Y %H:%M")
+    except Exception:
+        pass
+    return ""
+
+def salvar_snapshot_estavel(dados):
+    salvo_supabase = salvar_snapshot_supabase(dados)
+    salvo_local = salvar_snapshot_local(dados)
+    return salvo_supabase or salvo_local
+
+def carregar_snapshot_local():
+    st.session_state.snapshot_local_tentado = True
+    if not SNAPSHOT_PATH.exists():
+        return None
+    try:
+        with SNAPSHOT_PATH.open("rb") as arquivo:
+            pacote = pickle.load(arquivo)
+        dados = pacote.get("dados") if isinstance(pacote, dict) else pacote
+        if isinstance(dados, dict):
+            st.session_state.snapshot_local_carregado = True
+            return dados
+    except Exception as e:
+        st.warning(f"NÃ£o consegui carregar a Ãºltima base local: {e}")
+    return None
+
+def idade_snapshot_local():
+    if not SNAPSHOT_PATH.exists():
+        return ""
+    try:
+        modificado = datetime.fromtimestamp(SNAPSHOT_PATH.stat().st_mtime)
+        return modificado.strftime("%d/%m/%Y %H:%M")
+    except Exception:
+        return ""
+
+def carregar_snapshot_estavel():
+    st.session_state.snapshot_local_tentado = True
+    dados = carregar_snapshot_supabase()
+    if dados is not None:
+        st.session_state.snapshot_local_carregado = True
+        return dados
+    return carregar_snapshot_local()
+
+def idade_snapshot_estavel():
+    return idade_snapshot_supabase() or idade_snapshot_local()
 
 def salvar_contato_realizado(
     cliente_id, cliente, vendedor, observacao="", origem="prioridade", status="já liguei"
@@ -6116,6 +6290,20 @@ pagina = st.session_state.pagina_atual_crm
 
 with st.sidebar.expander("Configurações", expanded=False):
     st.info("Fonte automática: API GestãoClick")
+    st.markdown("**Base estável Supabase/local**")
+    ultima_base = idade_snapshot_estavel()
+    if ultima_base:
+        st.success(f"Última base estável salva: {ultima_base}")
+        if st.button("Usar última base estável", use_container_width=True):
+            snapshot = carregar_snapshot_estavel()
+            if snapshot is not None:
+                st.session_state.dados_processados = snapshot
+                st.success("Base estável carregada.")
+                st.rerun()
+            else:
+                st.warning("Não encontrei uma base estável válida.")
+    else:
+        st.caption("Ainda não há base estável salva. Atualize uma vez pelo GestãoClick.")
     st.markdown("**Supabase**")
     st.caption(
         "Planejado para observações, já liguei, retornos programados, histórico do cliente "
@@ -6335,6 +6523,7 @@ if modo_dados == "API GestãoClick":
                             "custo_ferramentas_mensal": custo_ferramentas_mensal,
                         }
                     )
+                salvar_snapshot_estavel(st.session_state.dados_processados)
                 st.success("Dados atualizados pelo GestãoClick.")
                 st.rerun()
             except Exception as e:
@@ -6391,8 +6580,19 @@ else:
                 "custo_marketing_mensal": custo_marketing_excel,
                 "custo_ferramentas_mensal": custo_ferramentas_excel,
             }
+            salvar_snapshot_estavel(st.session_state.dados_processados)
+            st.success("Arquivos analisados e base local estável salva.")
+            st.rerun()
         except Exception as e:
             st.error(f"Erro ao processar: {e}")
+
+if (
+    st.session_state.dados_processados is None
+    and not st.session_state.snapshot_local_tentado
+):
+    snapshot = carregar_snapshot_estavel()
+    if snapshot is not None:
+        st.session_state.dados_processados = snapshot
 
 if st.session_state.dados_processados is not None:
     if not st.session_state.persistencia_crm_tentada:
