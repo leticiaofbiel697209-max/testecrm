@@ -950,8 +950,8 @@ def enviar_whatsapp_watidy(numero, mensagem):
                 break
     if erros and all(": 404 -" in erro for erro in erros):
         raise RuntimeError(
-            "Endpoint Watidy nÃ£o encontrado. Configure [watidy].send_url com a URL completa "
-            "exata da opÃ§Ã£o de envio exibida na documentaÃ§Ã£o da sua conta. "
+            "Endpoint Watidy não encontrado. Configure [watidy].send_url com a URL completa "
+            "exata da opção de envio exibida na documentação da sua conta. "
             f"Base atual: {cfg['base_url']}."
         )
     raise RuntimeError(
@@ -1118,7 +1118,7 @@ def salvar_contato_realizado(
         concluir_retornos_do_cliente(cliente_id, cliente, agora.date())
     except Exception as e:
         if not erro_apenas_response_200(e):
-            st.warning(f"Contato salvo, mas o retorno nÃ£o pÃ´de ser concluÃ­do: {e}")
+            st.warning(f"Contato salvo, mas o retorno não pôde ser concluído: {e}")
     return registro
 
 def salvar_observacao_cliente(cliente_id, cliente, vendedor, observacao):
@@ -1445,7 +1445,7 @@ def preparar_financeiro(contas, col_cliente, col_vencimento, col_valor, col_stat
         -financeiro["Dias_para_vencer"]
     ).clip(lower=0)
 
-    def faixa(row):
+    def faixa_recebimento(row):
         dias = int(row["Dias_para_vencer"])
         if row["Vencida"]:
             atraso = int(row["Dias_atraso"])
@@ -1468,7 +1468,7 @@ def preparar_financeiro(contas, col_cliente, col_vencimento, col_valor, col_stat
             return "A vencer de 31 a 60 dias"
         return "A vencer acima de 60 dias"
 
-    financeiro["Faixa"] = financeiro.apply(faixa, axis=1)
+    financeiro["Faixa"] = financeiro.apply(faixa_recebimento, axis=1)
     return financeiro.sort_values(["Vencida", "Vencimento"], ascending=[False, True])
 
 def calcular_metricas_financeiras(financeiro):
@@ -1553,7 +1553,7 @@ def preparar_contas_pagar(pagamentos):
     )
     pagar["Dias_atraso"] = (-pagar["Dias_para_vencer"]).clip(lower=0)
 
-    def faixa(row):
+    def faixa_pagamento(row):
         dias = int(row["Dias_para_vencer"])
         if row["Vencida"]:
             atraso = int(row["Dias_atraso"])
@@ -1572,7 +1572,7 @@ def preparar_contas_pagar(pagamentos):
             return "A pagar de 16 a 30 dias"
         return "A pagar acima de 30 dias"
 
-    pagar["Faixa"] = pagar.apply(faixa, axis=1)
+    pagar["Faixa"] = pagar.apply(faixa_pagamento, axis=1)
     return pagar.sort_values(["Vencida", "Vencimento"], ascending=[False, True])
 
 def total_movimentos_liquidados(movimentos):
@@ -3736,10 +3736,10 @@ def renderizar_whatsapp_resumo(cliente, vendedor, oferta, chave, row=None):
                         if resposta:
                             st.caption(resposta[:300])
                     except Exception as e:
-                        st.error(f"NÃ£o foi possÃ­vel enviar pelo Watidy: {e}")
+                        st.error(f"Não foi possível enviar pelo Watidy: {e}")
                         st.markdown(f"[Abrir conversa no WhatsApp]({link})")
             else:
-                st.caption("Watidy nÃ£o configurado nos secrets. Usando rascunho manual.")
+                st.caption("Watidy não configurado nos secrets. Usando rascunho manual.")
                 st.markdown(f"[Abrir conversa no WhatsApp]({link})")
         else:
             st.caption("Informe o WhatsApp do cliente para gerar a conversa.")
