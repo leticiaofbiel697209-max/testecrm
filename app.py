@@ -2860,6 +2860,9 @@ def montar_prioridade(clientes):
     ].sort_values("score_prioridade_dia", ascending=False)
 
 def montar_resumo(clientes):
+    if "contato_recente" not in clientes.columns:
+        clientes = clientes.copy()
+        clientes["contato_recente"] = False
     temperaturas = clientes["temperatura"].isin([
         "🟢 QUENTE", "🟡 ATENÇÃO", "🔴 ATRASADO NA RECOMPRA", "⚫ CLIENTE INATIVO"
     ])
@@ -2870,7 +2873,7 @@ def montar_resumo(clientes):
         | clientes["orc_risco"].gt(0)
     )
     return clientes[
-        (temperaturas | regras) & (~clientes["ja_ligou_hoje"])
+        (temperaturas | regras) & (~clientes["contato_recente"])
     ].sort_values("score_prioridade_dia", ascending=False)
 
 def montar_resumo_diario(clientes):
@@ -2881,7 +2884,10 @@ def montar_resumo_diario(clientes):
     if clientes.empty:
         return pd.DataFrame(columns=colunas)
 
-    base = clientes[~clientes["ja_ligou_hoje"]].copy()
+    if "contato_recente" not in clientes.columns:
+        clientes = clientes.copy()
+        clientes["contato_recente"] = False
+    base = clientes[~clientes["contato_recente"]].copy()
     if "Vendedor" not in base.columns:
         base["Vendedor"] = "Sem vendedor"
     base["Vendedor"] = (
@@ -2940,17 +2946,21 @@ def calcular_churn(clientes):
     if clientes_com_ciclo.empty:
         return 0.0, 0, 0
 
-    clientes_churn = clientes_com_ciclo[
-        clientes_com_ciclo["dias_sem_comprar"] > clientes_com_ciclo["intervalo"] * 2
-    ]
+    filtro_churn = clientes_com_ciclo["dias_sem_comprar"] > clientes_com_ciclo["intervalo"] * 2
+    if "contato_recente" in clientes_com_ciclo.columns:
+        filtro_churn = filtro_churn & (~clientes_com_ciclo["contato_recente"].fillna(False))
+    clientes_churn = clientes_com_ciclo[filtro_churn]
     taxa = len(clientes_churn) / len(clientes_com_ciclo) * 100
     return taxa, len(clientes_churn), len(clientes_com_ciclo)
 
 def listar_clientes_churn(clientes):
-    churn = clientes[
+    filtro = (
         (clientes["intervalo"] > 0) &
         (clientes["dias_sem_comprar"] > clientes["intervalo"] * 2)
-    ].copy()
+    )
+    if "contato_recente" in clientes.columns:
+        filtro = filtro & (~clientes["contato_recente"].fillna(False))
+    churn = clientes[filtro].copy()
     churn["limite_churn_dias"] = (churn["intervalo"] * 2).round().astype(int)
     churn["dias_alem_limite"] = (
         churn["dias_sem_comprar"] - churn["limite_churn_dias"]
@@ -3281,7 +3291,7 @@ def montar_ofertas_recompra(dados, vendedor="Todas"):
         if not info:
             continue
         cliente = str(info.get("Cliente", "Cliente sem nome"))
-        if contato_realizado_hoje(cliente_id, cliente):
+        if contato_realizado_periodo(cliente_id, cliente, 7):
             continue
 
         intervalo_cliente = int(info.get("intervalo", 0) or 0)
@@ -3433,7 +3443,7 @@ def montar_resumo_diario_oportunidades(dados, vendedor="Todas"):
         data_orc = pd.to_datetime(row[co_data], errors="coerce")
         idade = int((hoje - data_orc.normalize()).days) if pd.notna(data_orc) else 0
         total = float(row.get(co_valor, 0) or 0) if co_valor else 0.0
-        ja_ligou = contato_realizado_hoje(cliente_id, cliente)
+        ja_ligou = contato_realizado_periodo(cliente_id, cliente, 7)
         retorno_data = data_retorno_cliente(cliente_id, cliente)
         tem_retorno = pd.notna(retorno_data) and retorno_data.normalize() <= hoje
         compra_count = int(venda_counts.get(chave, 0)) if not venda_counts.empty else 0
@@ -5491,15 +5501,28 @@ def renderizar():
     if pagina == "Ações de Hoje":
         st.subheader("Ações de Hoje")
         st.caption("Fila operacional do dia com clientes, orçamentos e retornos que precisam de ação.")
-        orc_2_dias = orc_aberto[orc_aberto["dias_no_sistema"] == 2].copy() if not orc_aberto.empty else pd.DataFrame()
-        orc_urgentes = orc_aberto[orc_aberto["dias_no_sistema"] >= 3].copy() if not orc_aberto.empty else pd.DataFrame()
+        orc_operacional = orc_aberto.copy()
+        if not orc_operacional.empty:
+            cli_orc_col = co_cli or achar_coluna(orc_operacional, ["cliente"])
+            cli_id_orc_col = achar_coluna(orc_operacional, ["cliente id"])
+            contato_orc_recente = orc_operacional.apply(
+                lambda r: contato_realizado_periodo(
+                    texto_valido(r.get(cli_id_orc_col, "")) if cli_id_orc_col else "",
+                    texto_valido(r.get(cli_orc_col, "")) if cli_orc_col else "",
+                    7,
+                ),
+                axis=1,
+            )
+            orc_operacional = orc_operacional[~contato_orc_recente].copy()
+        orc_2_dias = orc_operacional[orc_operacional["dias_no_sistema"] == 2].copy() if not orc_operacional.empty else pd.DataFrame()
+        orc_urgentes = orc_operacional[orc_operacional["dias_no_sistema"] >= 3].copy() if not orc_operacional.empty else pd.DataFrame()
         atraso_recompra = clientes[
             clientes["temperatura"].isin(["🔴 ATRASADO NA RECOMPRA", "⚫ CLIENTE INATIVO"])
-            & (~clientes["ja_ligou_hoje"])
+            & (~clientes["contato_recente"])
         ].copy()
         retornos_hoje = clientes[
             clientes.get("retornos_hoje", pd.Series(0, index=clientes.index)).gt(0)
-            & (~clientes["ja_ligou_hoje"])
+            & (~clientes["contato_recente"])
         ].copy()
 
         c1, c2, c3, c4, c5 = st.columns(5)
