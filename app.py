@@ -43,8 +43,8 @@ st.set_page_config(page_title="CRM Inteligente Novaprint", layout="wide")
 topo_logo, topo_titulo = st.columns([1, 6])
 if LOGO_PATH.exists():
     topo_logo.image(str(LOGO_PATH), width=120)
-topo_titulo.title("CRM Inteligente - NÃ­vel CEO")
-topo_titulo.caption("Novaprint Brasil | Comercial, financeiro, retenÃ§Ã£o e rotina das vendedoras em um sÃ³ lugar.")
+topo_titulo.title("CRM Inteligente - Nível CEO")
+topo_titulo.caption("Novaprint Brasil | Comercial, financeiro, retenção e rotina das vendedoras em um só lugar.")
 
 if "dados_processados" not in st.session_state:
     st.session_state.dados_processados = None
@@ -4307,14 +4307,14 @@ Dias sem comprar: <b>{int(r.get('dias_sem_comprar', 0) or 0)}</b>
                 )
                 with st.expander("Produtos comprados e orÃ§ados"):
                     renderizar_lista_itens("Itens comprados", r.get("itens_comprados", []))
-                    renderizar_lista_itens("Itens orÃ§ados", r.get("itens_orcados", []))
+                    renderizar_lista_itens("Itens orçados", r.get("itens_orcados", []))
 
 def renderizar_geracao_orcamentos():
-    st.subheader("GeraÃ§Ã£o de OrÃ§amentos")
-    st.caption("Crie orÃ§amentos no GestÃ£oClick usando o formato: Nome do produto; quantidade.")
+    st.subheader("Geração de Orçamentos")
+    st.caption("Crie orçamentos no GestãoClick usando o formato: Nome do produto; quantidade.")
     dados = st.session_state.dados_processados or {}
     if dados.get("origem") != "api" or not dados.get("loja_id"):
-        st.info("Atualize os dados pela API do GestÃ£oClick antes de criar orÃ§amentos.")
+        st.info("Atualize os dados pela API do GestãoClick antes de criar orçamentos.")
         return
 
     loja_id = dados.get("loja_id")
@@ -4447,20 +4447,20 @@ def renderizar_geracao_orcamentos():
                 vendedor.get("id") or "",
                 itens_final,
                 codigo.strip() or None,
-                "Criado pelo mÃ³dulo GeraÃ§Ã£o de OrÃ§amentos do CRM Inteligente.",
+                "Criado pelo módulo Geração de Orçamentos do CRM Inteligente.",
             )
             numero = criado.get("codigo") or criado.get("id")
-            st.success(f"OrÃ§amento {numero} criado no GestÃ£oClick.")
+            st.success(f"Orçamento {numero} criado no GestãoClick.")
         except Exception as e:
-            st.error(f"NÃ£o foi possÃ­vel criar o orÃ§amento: {e}")
+            st.error(f"Não foi possível criar o orçamento: {e}")
 
 def renderizar_resumo_diario(dados):
-    st.subheader("Resumo DiÃ¡rio")
-    st.caption("GestÃ£o diÃ¡ria dos orÃ§amentos, ofertas de recompra e prioridades das vendedoras.")
+    st.subheader("Comercial")
+    st.caption("Prioridades, churn, orçamentos, ofertas de recompra, busca de clientes e ações rápidas por vendedor.")
     orcamentos = dados.get("orcamentos_todos", pd.DataFrame())
     clientes = dados.get("clientes", pd.DataFrame())
     if orcamentos.empty and clientes.empty:
-        st.info("Carregue os dados da API para montar o resumo diÃ¡rio.")
+        st.info("Carregue os dados da API para montar o painel comercial.")
         return
 
     base_vendedores = orcamentos if not orcamentos.empty else clientes
@@ -4493,21 +4493,21 @@ def renderizar_resumo_diario(dados):
         )
 
     cols = st.columns(5)
-    cols[0].metric("LigaÃ§Ãµes hoje", counters["calls"] + len(ofertas))
+    cols[0].metric("Ligações hoje", counters["calls"] + len(ofertas))
     cols[1].metric("Oportunidades quentes", counters["hot"])
     cols[2].metric("Retornos hoje", counters["returns"])
     cols[3].metric("Sem contato", counters["untouched"])
     cols[4].metric("Vencendo", counters["expiring"])
 
     if "resumo_diario_secao" not in st.session_state:
-        st.session_state.resumo_diario_secao = "InÃ­cio"
+        st.session_state.resumo_diario_secao = "Início"
 
     secao = st.session_state.resumo_diario_secao
 
-    if secao == "InÃ­cio":
+    if secao == "Início":
         st.markdown("#### Prioridades e ofertas para hoje")
         st.caption(
-            "A tela inicial reÃºne a prioridade do CRM com ofertas de recompra calculadas pelo ciclo real de compra."
+            "A tela inicial reúne a prioridade do CRM com ofertas de recompra calculadas pelo ciclo real de compra."
         )
         inicio = pd.concat(
             [prioridade_resumo.head(12), ofertas.head(18)],
@@ -4534,7 +4534,7 @@ def renderizar_resumo_diario(dados):
     if secao == "Ofertas de recompra":
         st.markdown("#### Ofertas de recompra")
         st.caption(
-            "SugestÃµes geradas a partir do ciclo real de compra: produto, intervalo e dias sem comprar."
+            "Sugestões geradas a partir do ciclo real de compra: produto, intervalo e dias sem comprar."
         )
         renderizar_grid_resumo(ofertas, "oferta")
 
@@ -4542,8 +4542,8 @@ def renderizar_resumo_diario(dados):
         st.markdown("#### Buscar cliente e produtos")
         renderizar_busca_cliente_produtos(dados, vendedor)
 
-    if secao == "AÃ§Ãµes rÃ¡pidas":
-        st.markdown("#### AÃ§Ãµes rÃ¡pidas")
+    if secao == "Ações rápidas":
+        st.markdown("#### Ações rápidas")
         combinada = pd.concat(
             [oportunidades.head(15), ofertas.head(15)],
             ignore_index=True,
@@ -4551,10 +4551,10 @@ def renderizar_resumo_diario(dados):
         )
         renderizar_grid_resumo(combinada, "acoes")
 
-    if secao == "VisÃ£o de gestÃ£o":
+    if secao == "Visão de gestão":
         st.markdown("#### Desempenho por vendedor")
         if oportunidades.empty and ofertas.empty:
-            st.info("Nenhuma prioridade encontrada para gestÃ£o.")
+            st.info("Nenhuma prioridade encontrada para gestão.")
             return
         if oportunidades.empty:
             gestao = pd.DataFrame(columns=[
@@ -4571,7 +4571,7 @@ def renderizar_resumo_diario(dados):
         if not ofertas.empty:
             ofertas_gestao = ofertas.groupby("Vendedor").agg(
                 Ofertas=("Cliente", "count"),
-                Ticket=("Ticket mÃ©dio", "sum"),
+                Ticket=("Ticket médio", "sum"),
             ).reset_index()
             gestao = gestao.merge(ofertas_gestao, on="Vendedor", how="outer").fillna(0)
         if "Ofertas" not in gestao.columns:
@@ -4587,8 +4587,8 @@ def renderizar_resumo_diario(dados):
             use_container_width=True,
             hide_index=True,
         )
-    if secao == "Churn e retenÃ§Ã£o":
-        st.markdown("#### Churn e aÃ§Ãµes de retenÃ§Ã£o")
+    if secao == "Churn e retenção":
+        st.markdown("#### Churn e ações de retenção")
         clientes_base = dados.get("clientes", pd.DataFrame()).copy()
         if vendedor and vendedor != "Todas" and not clientes_base.empty:
             clientes_base = clientes_base[
@@ -4601,8 +4601,8 @@ def renderizar_resumo_diario(dados):
         c2.metric("Clientes em churn", qtd)
         c3.metric("Potencial mensal em risco", fmt(churn["potencial_mensal"].sum() if not churn.empty else 0))
         st.caption(
-            "AÃ§Ãµes recomendadas: contato consultivo, sugestÃ£o de recompra pelo item recorrente, "
-            "orÃ§amento com Ãºltimo preÃ§o unitÃ¡rio e retorno agendado se o cliente nÃ£o decidir agora."
+            "Ações recomendadas: contato consultivo, sugestão de recompra pelo item recorrente, "
+            "orçamento com último preço unitário e retorno agendado se o cliente não decidir agora."
         )
         if churn.empty:
             st.success("Nenhum cliente em churn para este filtro.")
@@ -4619,10 +4619,10 @@ def renderizar_resumo_diario(dados):
             )
             renderizar_grid_resumo(churn_resumo, "churn")
 
-    if secao == "OrÃ§amentos":
-        st.markdown("#### OrÃ§amentos para retorno")
+    if secao == "Orçamentos":
+        st.markdown("#### Orçamentos para retorno")
         orc_aberto_secao = dados.get("orc_aberto", pd.DataFrame()).copy()
-        co_num_secao = dados.get("co_num") or achar_coluna(orc_aberto_secao, ["nÂº", "nÂ°", "numero", "nÃºmero"])
+        co_num_secao = dados.get("co_num") or achar_coluna(orc_aberto_secao, ["nº", "n°", "numero", "número"])
         co_cli_secao = dados.get("co_cli") or achar_coluna(orc_aberto_secao, ["cliente"])
         co_valor_secao = dados.get("co_valor") or achar_coluna(orc_aberto_secao, ["valor"])
         if vendedor and vendedor != "Todas" and not orc_aberto_secao.empty:
@@ -4632,7 +4632,7 @@ def renderizar_resumo_diario(dados):
                     orc_aberto_secao[co_vendedor_secao].astype(str).str.strip() == vendedor
                 ].copy()
         if orc_aberto_secao.empty:
-            st.info("Nenhum orÃ§amento aberto para retorno neste filtro.")
+            st.info("Nenhum orçamento aberto para retorno neste filtro.")
         else:
             renderizar_cards_orcamentos_simples(
                 orc_aberto_secao.sort_values("dias_no_sistema", ascending=False),
@@ -5581,10 +5581,10 @@ Motivo: <b>{motivo}</b>
 """, unsafe_allow_html=True)
 
 def renderizar_comissao(dados):
-    st.subheader("ComissÃ£o")
+    st.subheader("Comissão")
     st.caption(
-        "ApuraÃ§Ã£o baseada no ciclo de vendas fechado de 21 a 20. "
-        "A comissÃ£o sÃ³ entra como a pagar quando hÃ¡ pagamento identificado atÃ© o fim do mÃªs."
+        "Apuração baseada no ciclo de vendas fechado de 21 a 20. "
+        "A comissão só entra como a pagar quando há pagamento identificado até o fim do mês."
     )
     apuracao = calcular_comissoes(dados)
     inicio = apuracao["inicio"]
@@ -5597,31 +5597,31 @@ def renderizar_comissao(dados):
 
     st.info(
         f"Ciclo de venda: {inicio:%d/%m/%Y} a {fim:%d/%m/%Y} | "
-        f"Cliente precisa pagar atÃ© {prazo:%d/%m/%Y} | "
-        f"Pagamento da comissÃ£o em {pagamento:%d/%m/%Y}"
+        f"Cliente precisa pagar até {prazo:%d/%m/%Y} | "
+        f"Pagamento da comissão em {pagamento:%d/%m/%Y}"
     )
     c1, c2, c3, c4 = st.columns(4)
     comissao_paga = float(itens.loc[itens["Pago no prazo"], "ComissÃ£o"].sum()) if not itens.empty else 0.0
     comissao_total = float(itens["ComissÃ£o"].sum()) if not itens.empty else 0.0
     aguardando = int((~itens["Pago no prazo"]).sum()) if not itens.empty else 0
-    c1.metric("ComissÃ£o a pagar", fmt(comissao_paga))
-    c2.metric("ComissÃ£o potencial", fmt(comissao_total))
+    c1.metric("Comissão a pagar", fmt(comissao_paga))
+    c2.metric("Comissão potencial", fmt(comissao_total))
     c3.metric("Itens aguardando pagamento", aguardando)
     c4.metric("Itens sem percentual", len(pendentes))
 
     st.markdown("#### Resumo por vendedora")
     if resumo.empty:
-        st.info("Nenhuma comissÃ£o paga no prazo foi identificada para este ciclo.")
+        st.info("Nenhuma comissão paga no prazo foi identificada para este ciclo.")
     else:
         tabela = resumo.copy()
         tabela["Vendas"] = tabela["Vendas"].map(fmt)
         tabela["Comissao"] = tabela["Comissao"].map(fmt)
-        tabela = tabela.rename(columns={"Comissao": "ComissÃ£o"})
+        tabela = tabela.rename(columns={"Comissao": "Comissão"})
         st.dataframe(tabela, use_container_width=True, hide_index=True)
 
     st.markdown("#### Potencial por vendedora")
     if itens.empty:
-        st.info("Nenhuma comissÃ£o potencial encontrada.")
+        st.info("Nenhuma comissão potencial encontrada.")
     else:
         potencial = itens.groupby("Vendedor").agg(
             Vendas=("Valor", "sum"),
@@ -5630,18 +5630,19 @@ def renderizar_comissao(dados):
         ).reset_index()
         potencial["Vendas"] = potencial["Vendas"].map(fmt)
         potencial["Comissao_potencial"] = potencial["Comissao_potencial"].map(fmt)
-        potencial = potencial.rename(columns={"Comissao_potencial": "ComissÃ£o potencial"})
+        potencial = potencial.rename(columns={"Comissao_potencial": "Comissão potencial"})
         st.dataframe(potencial, use_container_width=True, hide_index=True)
 
-    with st.expander("Itens com percentual de comissÃ£o", expanded=True):
+    with st.expander("Itens com percentual de comissão", expanded=True):
         if itens.empty:
-            st.info("Nenhum item com percentual de comissÃ£o foi encontrado no campo Tipo.")
+            st.info("Nenhum item com percentual de comissão foi encontrado no campo Tipo.")
         else:
             tabela = itens.copy()
             tabela["Data venda"] = pd.to_datetime(tabela["Data venda"], errors="coerce").dt.strftime("%d/%m/%Y")
             tabela["Valor"] = tabela["Valor"].map(fmt)
             tabela["ComissÃ£o"] = tabela["ComissÃ£o"].map(fmt)
             tabela["Percentual"] = tabela["Percentual"].map(lambda x: f"{x:.2f}%".replace(".", ","))
+            tabela = tabela.rename(columns={"ComissÃ£o": "Comissão"})
             st.dataframe(tabela, use_container_width=True, hide_index=True)
 
     with st.expander("Itens ignorados por falta de percentual"):
@@ -6044,9 +6045,9 @@ def renderizar():
         atualizado = dados.get("atualizado_em")
         texto_atualizacao = atualizado.strftime("%d/%m/%Y %H:%M") if atualizado else "agora"
         st.success(
-            f"Dados carregados pela API do GestÃ£oClick | "
+            f"Dados carregados pela API do GestãoClick | "
             f"Vendedor: {dados.get('vendedor_nome', 'Todos')} | "
-            f"PerÃ­odo: {periodo_inicio:%d/%m/%Y} a {periodo_fim:%d/%m/%Y} | "
+            f"Período: {periodo_inicio:%d/%m/%Y} a {periodo_fim:%d/%m/%Y} | "
             f"Atualizado em {texto_atualizacao}"
         )
     else:
@@ -6110,13 +6111,13 @@ def renderizar():
             st.warning("PDF indisponível. Verifique se reportlab está no requirements.txt.")
         return
 
-    if pagina == "Resumo DiÃ¡rio":
+    if pagina == "Resumo Diário":
         renderizar_resumo_diario(dados)
 
-    if pagina == "GeraÃ§Ã£o de OrÃ§amentos":
+    if pagina == "Geração de Orçamentos":
         renderizar_geracao_orcamentos()
 
-    if pagina == "ComissÃ£o":
+    if pagina == "Comissão":
         renderizar_comissao(dados)
 
     if pagina == "AÃ§Ãµes de Hoje":
@@ -6647,8 +6648,8 @@ if "abrir_geracao_orcamentos" not in st.session_state:
 if "abrir_comissao" not in st.session_state:
     st.session_state.abrir_comissao = False
 if "resumo_diario_secao" not in st.session_state:
-    st.session_state.resumo_diario_secao = "InÃ­cio"
-opcoes_paginas_crm = opcoes_menu_crm + ["Resumo DiÃ¡rio", "GeraÃ§Ã£o de OrÃ§amentos", "ComissÃ£o"]
+    st.session_state.resumo_diario_secao = "Início"
+opcoes_paginas_crm = opcoes_menu_crm + ["Resumo Diário", "Geração de Orçamentos", "Comissão"]
 if st.session_state.pagina_atual_crm not in opcoes_paginas_crm:
     st.session_state.pagina_atual_crm = "Gestão Executiva"
 
@@ -6687,7 +6688,7 @@ with st.sidebar.expander("Comercial", expanded=False):
         "Visão de gestão",
     ]
     secao_resumo_lateral = st.radio(
-        "SeÃ§Ãµes",
+        "Seções",
         secoes_resumo,
         index=secoes_resumo.index(st.session_state.resumo_diario_secao)
         if st.session_state.resumo_diario_secao in secoes_resumo else 0,
@@ -6700,83 +6701,83 @@ with st.sidebar.expander("Comercial", expanded=False):
     elif secao_resumo_lateral != secao_anterior_resumo:
         st.session_state.resumo_diario_secao = secao_resumo_lateral
         st.session_state.abrir_resumo_diario = True
-        st.session_state.pagina_atual_crm = "Resumo DiÃ¡rio"
+        st.session_state.pagina_atual_crm = "Comercial"
         st.session_state.menu_lateral_resumo_anterior = secao_resumo_lateral
         st.rerun()
-    if st.button("Abrir Resumo DiÃ¡rio", use_container_width=True):
+    if st.button("Abrir Comercial", use_container_width=True):
         st.session_state.resumo_diario_secao = secao_resumo_lateral
         st.session_state.abrir_resumo_diario = True
         st.session_state.abrir_geracao_orcamentos = False
         st.session_state.abrir_comissao = False
-        st.session_state.pagina_atual_crm = "Resumo DiÃ¡rio"
+        st.session_state.pagina_atual_crm = "Comercial"
         st.rerun()
 
-with st.sidebar.expander("GeraÃ§Ã£o de OrÃ§amentos", expanded=False):
-    st.caption("Criar orÃ§amento via API do GestÃ£oClick.")
-    if st.button("Abrir GeraÃ§Ã£o de OrÃ§amentos", use_container_width=True):
+with st.sidebar.expander("Geração de Orçamentos", expanded=False):
+    st.caption("Criar orçamento via API do GestãoClick.")
+    if st.button("Abrir Geração de Orçamentos", use_container_width=True):
         st.session_state.abrir_geracao_orcamentos = True
         st.session_state.abrir_resumo_diario = False
         st.session_state.abrir_comissao = False
-        st.session_state.pagina_atual_crm = "GeraÃ§Ã£o de OrÃ§amentos"
+        st.session_state.pagina_atual_crm = "Geração de Orçamentos"
         st.rerun()
 
-with st.sidebar.expander("ComissÃ£o", expanded=False):
-    st.caption("ApuraÃ§Ã£o de comissÃ£o por ciclo 21 a 20.")
-    if st.button("Abrir ComissÃ£o", use_container_width=True):
+with st.sidebar.expander("Comissão", expanded=False):
+    st.caption("Apuração de comissão por ciclo 21 a 20.")
+    if st.button("Abrir Comissão", use_container_width=True):
         st.session_state.abrir_comissao = True
         st.session_state.abrir_resumo_diario = False
         st.session_state.abrir_geracao_orcamentos = False
-        st.session_state.pagina_atual_crm = "ComissÃ£o"
+        st.session_state.pagina_atual_crm = "Comissão"
         st.rerun()
 
 pagina = st.session_state.pagina_atual_crm
 
-with st.sidebar.expander("ConfiguraÃ§Ãµes", expanded=False):
-    st.info("Fonte automÃ¡tica: API GestÃ£oClick")
-    st.markdown("**Base estÃ¡vel Supabase/local**")
+with st.sidebar.expander("Configurações", expanded=False):
+    st.info("Fonte automática: API GestãoClick")
+    st.markdown("**Base estável Supabase/local**")
     ultima_base = idade_snapshot_estavel()
     if ultima_base:
-        st.success(f"Ãšltima base estÃ¡vel salva: {ultima_base}")
-        if st.button("Usar Ãºltima base estÃ¡vel", use_container_width=True):
+        st.success(f"Última base estável salva: {ultima_base}")
+        if st.button("Usar última base estável", use_container_width=True):
             snapshot = carregar_snapshot_estavel()
             if snapshot is not None:
                 st.session_state.dados_processados = snapshot
-                st.success("Base estÃ¡vel carregada.")
+                st.success("Base estável carregada.")
                 st.rerun()
             else:
-                st.warning("NÃ£o encontrei uma base estÃ¡vel vÃ¡lida.")
+                st.warning("Não encontrei uma base estável válida.")
     else:
-        st.caption("Ainda nÃ£o hÃ¡ base estÃ¡vel salva. Atualize uma vez pelo GestÃ£oClick.")
+        st.caption("Ainda não há base estável salva. Atualize uma vez pelo GestãoClick.")
     st.markdown("**Supabase**")
     st.caption(
-        "Planejado para observaÃ§Ãµes, jÃ¡ liguei, retornos programados, histÃ³rico do cliente "
-        "e usuÃ¡rios/vendedoras."
+        "Planejado para observações, já liguei, retornos programados, histórico do cliente "
+        "e usuários/vendedoras."
     )
-    if st.button("Testar conexÃ£o Supabase", use_container_width=True):
+    if st.button("Testar conexão Supabase", use_container_width=True):
         try:
             resultados_supabase = testar_conexao_supabase()
             ok = [r for r in resultados_supabase if str(r[1]) in {"200", "206"}]
             if len(ok) == len(resultados_supabase):
                 st.success("Supabase conectado e tabelas acessÃ­veis.")
             else:
-                st.warning("Supabase respondeu, mas hÃ¡ tabelas pendentes ou sem permissÃ£o.")
+                st.warning("Supabase respondeu, mas há tabelas pendentes ou sem permissão.")
             st.dataframe(
                 pd.DataFrame(resultados_supabase, columns=["Tabela", "Status", "Detalhe"]),
                 use_container_width=True,
                 hide_index=True,
             )
         except Exception as e:
-            st.error(f"NÃ£o foi possÃ­vel conectar ao Supabase: {e}")
+            st.error(f"Não foi possível conectar ao Supabase: {e}")
     st.markdown("**Watidy / WhatsApp**")
     if watidy_configurado():
         cfg_watidy = credenciais_watidy()
         st.success(f"Watidy configurado: {cfg_watidy['base_url']}{cfg_watidy['send_path']}")
     else:
-        st.warning("Watidy nÃ£o configurado. O CRM abrirÃ¡ rascunho no WhatsApp.")
-modo_dados = "API GestÃ£oClick"
+        st.warning("Watidy não configurado. O CRM abrirá rascunho no WhatsApp.")
+modo_dados = "API GestãoClick"
 
-if modo_dados == "API GestÃ£oClick":
-    with st.sidebar.expander("ConexÃ£o GestÃ£oClick", expanded=False):
+if modo_dados == "API GestãoClick":
+    with st.sidebar.expander("Conexão GestãoClick", expanded=False):
         access_padrao, secret_padrao = credenciais_gestaoclick()
         tokens_no_secrets = credenciais_gestaoclick_no_secrets()
         if "gc_access_token" not in st.session_state:
@@ -6787,25 +6788,25 @@ if modo_dados == "API GestÃ£oClick":
             st.session_state.gc_usuario_nome = USUARIO_PADRAO
 
         if tokens_no_secrets:
-            st.success("Tokens do GestÃ£oClick carregados pelo secrets.")
+            st.success("Tokens do GestãoClick carregados pelo secrets.")
         else:
             st.error(
-                "Tokens do GestÃ£oClick nÃ£o encontrados no secrets. "
+                "Tokens do GestãoClick não encontrados no secrets. "
                 "Configure st.secrets['gestaoclick'] para conectar."
             )
         st.text_input(
-            "Nome de quem registra as observaÃ§Ãµes",
+            "Nome de quem registra as observações",
             key="gc_usuario_nome"
         )
 
         if st.button("Conectar e carregar lojas"):
             try:
-                with st.spinner("Conectando ao GestÃ£oClick..."):
+                with st.spinner("Conectando ao GestãoClick..."):
                     st.session_state.gestaoclick_lojas = api_gestaoclick().stores()
                     st.session_state.gestaoclick_usuarios = []
-                st.success("ConexÃ£o realizada.")
+                st.success("Conexão realizada.")
             except Exception as e:
-                st.error(f"Erro de conexÃ£o: {e}")
+                st.error(f"Erro de conexão: {e}")
 
     lojas = st.session_state.gestaoclick_lojas
     if lojas:
@@ -6845,19 +6846,19 @@ if modo_dados == "API GestÃ£oClick":
         fim_padrao = date.today()
         inicio_padrao = fim_padrao - timedelta(days=90)
         inicio_api = st.sidebar.date_input(
-            "Vendas e orÃ§amentos desde",
+            "Vendas e orçamentos desde",
             value=inicio_padrao,
             max_value=fim_padrao
         )
         fim_api = st.sidebar.date_input(
-            "AtÃ©",
+            "Até",
             value=fim_padrao,
             min_value=inicio_api,
             max_value=fim_padrao
         )
         st.sidebar.caption(
-            "PadrÃ£o comercial: Ãºltimos 90 dias para ganhar velocidade. "
-            "A visÃ£o financeira permanece separada e considera os dados financeiros disponÃ­veis."
+            "Padrão comercial: últimos 90 dias para ganhar velocidade. "
+            "A visão financeira permanece separada e considera os dados financeiros disponíveis."
         )
 
         with st.sidebar.expander("Metas e premissas financeiras"):
@@ -6903,7 +6904,7 @@ if modo_dados == "API GestÃ£oClick":
                 )
                 st.session_state.metas_vendedor[vendedor_nome_config] = meta_vendedor
             saldo_inicial = st.number_input(
-                "Saldo bancÃ¡rio inicial",
+                "Saldo bancário inicial",
                 value=float(st.session_state.get("saldo_inicial", 0.0)),
                 step=1000.0
             )
@@ -6921,13 +6922,13 @@ if modo_dados == "API GestÃ£oClick":
                 step=1000.0
             )
             despesas_fixas = st.number_input(
-                "Despesas fixas mensais nÃ£o lanÃ§adas",
+                "Despesas fixas mensais não lançadas",
                 min_value=0.0,
                 value=float(st.session_state.get("despesas_fixas", 0.0)),
                 step=1000.0
             )
             outras_despesas = st.number_input(
-                "Outras despesas mensais nÃ£o lanÃ§adas",
+                "Outras despesas mensais não lançadas",
                 min_value=0.0,
                 value=float(st.session_state.get("outras_despesas", 0.0)),
                 step=500.0
@@ -6938,10 +6939,10 @@ if modo_dados == "API GestÃ£oClick":
             st.session_state.despesas_fixas = despesas_fixas
             st.session_state.outras_despesas = outras_despesas
 
-        if st.sidebar.button("Atualizar dados do GestÃ£oClick", type="primary"):
+        if st.sidebar.button("Atualizar dados do GestãoClick", type="primary"):
             try:
                 with st.spinner(
-                    "Buscando vendas, orÃ§amentos, contas a receber, contas a pagar e movimentos do mÃªs..."
+                    "Buscando vendas, orçamentos, contas a receber, contas a pagar e movimentos do mês..."
                 ):
                     st.session_state.clientes_ligados = carregar_clientes_ligados_hoje()
                     carregar_persistencia_crm()
@@ -6967,17 +6968,17 @@ if modo_dados == "API GestÃ£oClick":
                         }
                     )
                 salvar_snapshot_estavel(st.session_state.dados_processados)
-                st.success("Dados atualizados pelo GestÃ£oClick.")
+                st.success("Dados atualizados pelo GestãoClick.")
                 st.rerun()
             except Exception as e:
-                st.error(f"Erro ao buscar dados do GestÃ£oClick: {e}")
+                st.error(f"Erro ao buscar dados do GestãoClick: {e}")
     else:
         st.sidebar.info("Conecte a API para selecionar uma loja.")
 
 else:
     st.sidebar.header("Importar arquivos")
-    vendas_file = st.sidebar.file_uploader("RelatÃ³rio de Vendas", type=["xlsx"])
-    orc_file = st.sidebar.file_uploader("RelatÃ³rio de OrÃ§amentos", type=["xlsx"])
+    vendas_file = st.sidebar.file_uploader("Relatório de Vendas", type=["xlsx"])
+    orc_file = st.sidebar.file_uploader("Relatório de Orçamentos", type=["xlsx"])
     contas_file = st.sidebar.file_uploader("Contas a Receber", type=["xlsx"])
 
     with st.sidebar.expander("Premissas CAC"):
@@ -7008,7 +7009,7 @@ else:
 
     if st.sidebar.button("Analisar arquivos", type="primary"):
         if not vendas_file or not orc_file or not contas_file:
-            st.error("Envie os trÃªs arquivos.")
+            st.error("Envie os três arquivos.")
             st.stop()
 
         try:
