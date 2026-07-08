@@ -36,7 +36,8 @@ except Exception:
 BASE_DIR = Path(__file__).resolve().parent
 LOGO_PATH = BASE_DIR / "assets" / "logo_novaprint.png"
 SNAPSHOT_DIR = BASE_DIR / ".crm_cache"
-SNAPSHOT_PATH = SNAPSHOT_DIR / "ultima_base_processada.pkl"
+SNAPSHOT_PATH = SNAPSHOT_DIR / "ultima_base_processada.json.gz"
+SNAPSHOT_PICKLE_LEGADO_PATH = SNAPSHOT_DIR / "ultima_base_processada.pkl"
 
 st.set_page_config(page_title="CRM Inteligente Novaprint", layout="wide")
 
@@ -713,6 +714,8 @@ SUPABASE_TABELAS_CRM = [
     "retornos_programados",
     "historico_cliente",
     "usuarios_vendedoras",
+    "auditoria_acoes",
+    "followup_fila",
     "crm_snapshots",
     "entregadores",
     "rotas",
@@ -798,8 +801,8 @@ def credenciais_watidy():
             config.get("base_url", "https://api-whatsapp.wascript.com.br")
         ).strip().rstrip("/")
         token = str(config.get("token", "")).strip()
-        send_path = str(config.get("send_path", "/send-message")).strip()
-        fallback_paths = config.get("fallback_paths", [])
+        send_path = str(config.get("send_path", "/api/enviar-texto/{token}")).strip()
+        method = str(config.get("method", "GET")).strip().upper() or "GET"
         phone_field = str(config.get("phone_field", "phone")).strip() or "phone"
         message_field = str(config.get("message_field", "message")).strip() or "message"
         instance_id = str(config.get("instance_id", "")).strip()
@@ -808,8 +811,8 @@ def credenciais_watidy():
         send_url = ""
         base_url = "https://api-whatsapp.wascript.com.br"
         token = ""
-        send_path = "/send-message"
-        fallback_paths = []
+        send_path = "/api/enviar-texto/{token}"
+        method = "GET"
         phone_field = "phone"
         message_field = "message"
         instance_id = ""
@@ -819,11 +822,7 @@ def credenciais_watidy():
         "base_url": base_url,
         "token": token,
         "send_path": send_path if send_path.startswith("/") else "/" + send_path,
-        "fallback_paths": [
-            p if str(p).startswith("/") else "/" + str(p)
-            for p in (fallback_paths or [])
-            if str(p).strip()
-        ],
+        "method": method,
         "phone_field": phone_field,
         "message_field": message_field,
         "instance_id": instance_id,
@@ -898,124 +897,51 @@ def enviar_whatsapp_watidy(numero, mensagem):
         raise RuntimeError("Informe o WhatsApp do cliente.")
     if not numero.startswith("55"):
         numero = "55" + numero
-    endpoint_get = (
-        cfg["base_url"]
-        + "/api/enviar-texto/"
-        + urllib.parse.quote(cfg["token"])
-        + "?"
-        + urllib.parse.urlencode({
-            "phone": numero,
-            "number": numero,
-            "numero": numero,
-            "telefone": numero,
-            "message": mensagem,
-            "mensagem": mensagem,
-            "text": mensagem,
-        })
-    )
-    request_get = urllib.request.Request(
-        endpoint_get,
-        headers={
-            "Accept": "application/json",
-            "Authorization": f"Bearer {cfg['token']}",
-            "token": cfg["token"],
-        },
-        method="GET",
-    )
-    try:
-        with urllib.request.urlopen(request_get, timeout=20) as response:
-            texto = response.read().decode("utf-8", errors="replace")
-            return response.status, f"Endpoint usado: GET /api/enviar-texto/{{token}}\n{texto}"
-    except urllib.error.HTTPError as exc:
-        detalhe_get = exc.read().decode("utf-8", errors="replace")
-        if exc.code not in {400, 404, 405, 422}:
-            raise RuntimeError(
-                f"Watidy retornou erro {exc.code}: {limpar_erro_api(detalhe_get)}"
-            ) from exc
-    payload_base = {
+
+    token = urllib.parse.quote(cfg["token"])
+    if cfg["send_url"]:
+        endpoint = cfg["send_url"].replace("{token}", token)
+    else:
+        path = cfg["send_path"].replace("{token}", token)
+        if not path.startswith("/"):
+            path = "/" + path
+        endpoint = cfg["base_url"] + path
+
+    payload = {
         cfg["phone_field"]: numero,
         cfg["message_field"]: mensagem,
     }
     if cfg["instance_id"]:
-        payload_base[cfg["instance_field"]] = cfg["instance_id"]
-    payloads = [
-        payload_base,
-        {"number": numero, "message": mensagem, **({cfg["instance_field"]: cfg["instance_id"]} if cfg["instance_id"] else {})},
-        {"phone": numero, "text": mensagem, **({cfg["instance_field"]: cfg["instance_id"]} if cfg["instance_id"] else {})},
-        {"telefone": numero, "mensagem": mensagem, **({cfg["instance_field"]: cfg["instance_id"]} if cfg["instance_id"] else {})},
-    ]
-    caminhos = []
-    for caminho in [
-        cfg["send_path"],
-        *cfg.get("fallback_paths", []),
-        "/send-message",
-        "/api/send-message",
-        "/message/send",
-        "/api/message/send",
-        "/messages/send",
-        "/api/messages/send",
-        "/sendText",
-        "/api/sendText",
-        "/send/text",
-        "/api/send/text",
-        "/send",
-        "/api/send",
-    ]:
-        if caminho and caminho not in caminhos:
-            caminhos.append(caminho)
-    erros = []
+        payload[cfg["instance_field"]] = cfg["instance_id"]
+
     headers = {
-        "Content-Type": "application/json",
         "Accept": "application/json",
         "Authorization": f"Bearer {cfg['token']}",
         "token": cfg["token"],
         "x-api-key": cfg["token"],
     }
-    endpoints = []
-    if cfg["send_url"]:
-        endpoints.append(("URL configurada", cfg["send_url"]))
+    metodo = cfg.get("method", "GET").upper()
+    if metodo == "GET":
+        query = urllib.parse.urlencode(payload)
+        separador = "&" if "?" in endpoint else "?"
+        request = urllib.request.Request(endpoint + separador + query, headers=headers, method="GET")
     else:
-        for caminho in [
-            *caminhos,
-            "/api/v1/send-message",
-            "/api/v1/messages/send",
-            "/api/v1/whatsapp/send-message",
-        ]:
-            endpoint = cfg["base_url"] + caminho
-            if (caminho, endpoint) not in endpoints:
-                endpoints.append((caminho, endpoint))
-    for rotulo_endpoint, endpoint in endpoints:
-        for payload in payloads:
-            request = urllib.request.Request(
-                endpoint,
-                data=json.dumps(payload).encode("utf-8"),
-                headers=headers,
-                method="POST",
-            )
-            try:
-                with urllib.request.urlopen(request, timeout=20) as response:
-                    texto = response.read().decode("utf-8", errors="replace")
-                    return response.status, f"Endpoint usado: {rotulo_endpoint}\n{texto}"
-            except urllib.error.HTTPError as exc:
-                detalhe = exc.read().decode("utf-8", errors="replace")
-                detalhe_limpo = limpar_erro_api(detalhe)
-                erros.append(f"{rotulo_endpoint}: {exc.code} - {detalhe_limpo}")
-                if exc.code not in {400, 404, 405, 422}:
-                    raise RuntimeError(f"Watidy retornou erro {exc.code}: {detalhe_limpo}") from exc
-            except Exception as exc:
-                erros.append(f"{rotulo_endpoint}: {exc}")
-                break
-    if erros and all(": 404 -" in erro for erro in erros):
-        raise RuntimeError(
-            "Endpoint Watidy nÃ£o encontrado. Configure [watidy].send_url com a URL completa "
-            "exata da opÃ§Ã£o de envio exibida na documentaÃ§Ã£o da sua conta. "
-            f"Base atual: {cfg['base_url']}."
+        headers["Content-Type"] = "application/json"
+        request = urllib.request.Request(
+            endpoint,
+            data=json.dumps(payload).encode("utf-8"),
+            headers=headers,
+            method=metodo,
         )
-    raise RuntimeError(
-        "Nenhum endpoint Watidy aceitou o envio. "
-        "Confira o send_path da documentaÃ§Ã£o da sua conta. Tentativas: "
-        + " | ".join(erros[:4])
-    )
+    try:
+        with urllib.request.urlopen(request, timeout=20) as response:
+            texto = response.read().decode("utf-8", errors="replace")
+            return response.status, f"Endpoint usado: {metodo} {endpoint}\n{texto}"
+    except urllib.error.HTTPError as exc:
+        detalhe = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(
+            f"Watidy retornou erro {exc.code} no endpoint configurado: {limpar_erro_api(detalhe)}"
+        ) from exc
 
 def fmt(v):
     try:
@@ -1044,6 +970,70 @@ def link_download_bytes(rotulo, conteudo, nome_arquivo, mime):
 
 def norm(x):
     return str(x).strip().lower().replace("Âº", "o").replace("Â°", "o")
+
+def limpar_texto_interface(valor):
+    if valor is None:
+        return valor
+    texto = str(valor)
+    trocas = {
+        "RETENÃ‡ÃƒO": "RETENÇÃO",
+        "GestÃ£oClick": "GestãoClick",
+        "GeraÃ§Ã£o": "Geração",
+        "OrÃ§amentos": "Orçamentos",
+        "OrÃ§amento": "Orçamento",
+        "ComissÃ£o": "Comissão",
+        "ConfiguraÃ§Ãµes": "Configurações",
+        "ConexÃ£o": "Conexão",
+        "NÃ£o": "Não",
+        "nÃ£o": "não",
+        "possÃ­vel": "possível",
+        "possÃvel": "possível",
+        "mÃªs": "mês",
+        "perÃ­odo": "período",
+        "PerÃ­odo": "Período",
+        "mÃ©dio": "médio",
+        "MÃ©dio": "Médio",
+        "recuperÃ¡vel": "recuperável",
+        "RecuperÃ¡vel": "Recuperável",
+        "evoluÃ§Ã£o": "evolução",
+        "EvoluÃ§Ã£o": "Evolução",
+        "histÃ³rico": "histórico",
+        "HistÃ³rico": "Histórico",
+        "aÃ§Ã£o": "ação",
+        "aÃ§Ãµes": "ações",
+        "AÃ§Ãµes": "Ações",
+        "SaudÃ¡veis": "Saudáveis",
+        "SAUDÃVEL": "SAUDÁVEL",
+        "RetenÃ§Ã£o": "Retenção",
+        "retenÃ§Ã£o": "retenção",
+        "InadimplÃªncia": "Inadimplência",
+        "saÃ­das": "saídas",
+        "Ãºltimos": "últimos",
+        "Ãºltima": "última",
+        "Ãšltima": "Última",
+        "Ã©": "é",
+        "Ã¡": "á",
+        "Ã ": "à",
+        "Ã§": "ç",
+        "Ã£": "ã",
+        "Ãµ": "õ",
+        "Ãª": "ê",
+        "Ã­": "í",
+        "Ã³": "ó",
+        "Ãº": "ú",
+        "â€”": "-",
+        "âŒ": "",
+        "âš ï¸": "",
+        "ðŸ’°": "",
+        "ðŸŽ¯": "",
+        "ðŸ”„": "",
+        "ðŸš¨": "",
+        "ðŸ‘¥": "",
+        "ðŸ’µ": "",
+    }
+    for antigo, novo in trocas.items():
+        texto = texto.replace(antigo, novo)
+    return texto.strip()
 
 def somente_digitos(x):
     return re.sub(r"\D+", "", str(x or ""))
@@ -1144,23 +1134,63 @@ def salvar_snapshot_local(dados):
     try:
         SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
         pacote = {
-            "salvo_em": datetime.now(),
-            "dados": dados,
+            "versao": 2,
+            "salvo_em": datetime.now().isoformat(),
+            "dados": preparar_json_snapshot(dados),
         }
-        with SNAPSHOT_PATH.open("wb") as arquivo:
-            pickle.dump(pacote, arquivo, protocol=pickle.HIGHEST_PROTOCOL)
+        bruto = json.dumps(pacote, ensure_ascii=False).encode("utf-8")
+        with gzip.open(SNAPSHOT_PATH, "wb") as arquivo:
+            arquivo.write(bruto)
         return True
     except Exception as e:
-        st.warning(f"NÃƒÂ£o consegui salvar a base local estÃƒÂ¡vel: {e}")
+        st.warning(f"Não consegui salvar a base local estável: {e}")
         return False
+
+def preparar_json_snapshot(obj):
+    if isinstance(obj, pd.DataFrame):
+        return {
+            "__tipo__": "dataframe",
+            "valor": obj.to_json(orient="split", date_format="iso", force_ascii=False),
+        }
+    if isinstance(obj, pd.Series):
+        return {
+            "__tipo__": "series",
+            "valor": obj.to_json(date_format="iso", force_ascii=False),
+        }
+    if isinstance(obj, (datetime, date, pd.Timestamp)):
+        return {"__tipo__": "datetime", "valor": pd.Timestamp(obj).isoformat()}
+    if isinstance(obj, dict):
+        return {str(k): preparar_json_snapshot(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple, set)):
+        return [preparar_json_snapshot(v) for v in obj]
+    if isinstance(obj, float) and (math.isnan(obj) or math.isinf(obj)):
+        return None
+    try:
+        json.dumps(obj)
+        return obj
+    except Exception:
+        return str(obj)
+
+def restaurar_json_snapshot(obj):
+    if isinstance(obj, dict) and obj.get("__tipo__") == "dataframe":
+        return pd.read_json(BytesIO(obj.get("valor", "").encode("utf-8")), orient="split")
+    if isinstance(obj, dict) and obj.get("__tipo__") == "series":
+        return pd.read_json(BytesIO(obj.get("valor", "").encode("utf-8")), typ="series")
+    if isinstance(obj, dict) and obj.get("__tipo__") == "datetime":
+        return pd.to_datetime(obj.get("valor"), errors="coerce").to_pydatetime()
+    if isinstance(obj, dict):
+        return {k: restaurar_json_snapshot(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [restaurar_json_snapshot(v) for v in obj]
+    return obj
 
 def serializar_snapshot(dados):
     pacote = {
-        "versao": 1,
-        "salvo_em": datetime.now(),
-        "dados": dados,
+        "versao": 2,
+        "salvo_em": datetime.now().isoformat(),
+        "dados": preparar_json_snapshot(dados),
     }
-    bruto = pickle.dumps(pacote, protocol=pickle.HIGHEST_PROTOCOL)
+    bruto = json.dumps(pacote, ensure_ascii=False).encode("utf-8")
     return base64.b64encode(gzip.compress(bruto)).decode("ascii")
 
 def desserializar_snapshot(payload_base64):
@@ -1169,10 +1199,16 @@ def desserializar_snapshot(payload_base64):
         bruto = gzip.decompress(bruto)
     except Exception:
         pass
-    pacote = pickle.loads(bruto)
-    if isinstance(pacote, dict) and "dados" in pacote:
-        return pacote.get("dados")
-    return pacote
+    try:
+        pacote = json.loads(bruto.decode("utf-8"))
+        if isinstance(pacote, dict) and "dados" in pacote:
+            return restaurar_json_snapshot(pacote.get("dados"))
+        return restaurar_json_snapshot(pacote)
+    except Exception:
+        pacote = pickle.loads(bruto)
+        if isinstance(pacote, dict) and "dados" in pacote:
+            return pacote.get("dados")
+        return pacote
 
 def salvar_snapshot_supabase(dados):
     if not dados:
@@ -1242,24 +1278,31 @@ def salvar_snapshot_estavel(dados):
 
 def carregar_snapshot_local():
     st.session_state.snapshot_local_tentado = True
-    if not SNAPSHOT_PATH.exists():
+    caminho = SNAPSHOT_PATH if SNAPSHOT_PATH.exists() else SNAPSHOT_PICKLE_LEGADO_PATH
+    if not caminho.exists():
         return None
     try:
-        with SNAPSHOT_PATH.open("rb") as arquivo:
-            pacote = pickle.load(arquivo)
-        dados = pacote.get("dados") if isinstance(pacote, dict) else pacote
+        if caminho.suffix == ".gz":
+            with gzip.open(caminho, "rb") as arquivo:
+                pacote = json.loads(arquivo.read().decode("utf-8"))
+            dados = restaurar_json_snapshot(pacote.get("dados")) if isinstance(pacote, dict) else None
+        else:
+            with caminho.open("rb") as arquivo:
+                pacote = pickle.load(arquivo)
+            dados = pacote.get("dados") if isinstance(pacote, dict) else pacote
         if isinstance(dados, dict):
             st.session_state.snapshot_local_carregado = True
             return dados
     except Exception as e:
-        st.warning(f"NÃƒÂ£o consegui carregar a ÃƒÂºltima base local: {e}")
+        st.warning(f"Não consegui carregar a última base local: {e}")
     return None
 
 def idade_snapshot_local():
-    if not SNAPSHOT_PATH.exists():
+    caminho = SNAPSHOT_PATH if SNAPSHOT_PATH.exists() else SNAPSHOT_PICKLE_LEGADO_PATH
+    if not caminho.exists():
         return ""
     try:
-        modificado = datetime.fromtimestamp(SNAPSHOT_PATH.stat().st_mtime)
+        modificado = datetime.fromtimestamp(caminho.stat().st_mtime)
         return modificado.strftime("%d/%m/%Y %H:%M")
     except Exception:
         return ""
@@ -1541,12 +1584,12 @@ def status_liquidado_financeiro(status):
 
 def status_orcamento(dias):
     if dias <= 1:
-        return "âœ… AceitÃ¡vel"
+        return "Aceitável"
     if dias == 2:
-        return "ðŸ“ž Ligar hoje"
+        return "Ligar hoje"
     if dias == 3:
-        return "âš ï¸ Urgente"
-    return "ðŸš¨ Risco de ter perdido"
+        return "Urgente"
+    return "Risco de ter perdido"
 
 def score_risco(media_atraso):
     if pd.isna(media_atraso) or media_atraso <= 0:
@@ -1555,60 +1598,60 @@ def score_risco(media_atraso):
 
 def descricao_score(score):
     if score >= 85:
-        return "ðŸŸ¢ Baixo risco de inadimplÃªncia"
+        return "Baixo risco de inadimplência"
     if score >= 65:
-        return "ðŸŸ¡ Risco moderado de inadimplÃªncia"
+        return "Risco moderado de inadimplência"
     if score >= 40:
-        return "ðŸŸ  Alto risco de inadimplÃªncia"
-    return "ðŸ”´ Risco crÃ­tico de inadimplÃªncia"
+        return "Alto risco de inadimplência"
+    return "Risco crítico de inadimplência"
 
 def temperatura_cliente(dias, intervalo):
     if intervalo <= 0:
         if dias <= 30:
-            return "ðŸŸ£ NOVO"
+            return "NOVO"
         if dias <= 60:
-            return "ðŸŸ¡ ATENÃ‡ÃƒO"
-        return "âš« CLIENTE INATIVO"
+            return "ATENÇÃO"
+        return "CLIENTE INATIVO"
     if intervalo * 0.9 <= dias <= intervalo * 1.2:
-        return "ðŸŸ¢ QUENTE"
+        return "QUENTE"
     if intervalo * 1.2 < dias <= intervalo * 1.5:
-        return "ðŸŸ¡ ATENÃ‡ÃƒO"
+        return "ATENÇÃO"
     if intervalo * 1.5 < dias <= intervalo * 2:
-        return "ðŸ”´ ATRASADO NA RECOMPRA"
+        return "ATRASADO NA RECOMPRA"
     if dias > intervalo * 2:
-        return "âš« CLIENTE INATIVO"
-    return "ðŸ”µ CEDO"
+        return "CLIENTE INATIVO"
+    return "CEDO"
 
 def sugestao_ia(dias, intervalo, orcs, inad, potencial):
     temp = temperatura_cliente(dias, intervalo)
     if inad > 0:
-        return "ðŸ’¸ Cliente com inadimplÃªncia. Priorizar cobranÃ§a antes de nova venda."
-    if orcs > 0 and temp in ["ðŸŸ¢ QUENTE", "ðŸŸ¡ ATENÃ‡ÃƒO"]:
-        return "ðŸ“„ Cliente com orÃ§amento em aberto e bom momento de compra. Priorizar fechamento hoje."
-    if temp == "ðŸŸ¢ QUENTE":
-        return f"ðŸŸ¢ Momento ideal. Ligar com oferta direta. Potencial mensal: {fmt(potencial)}."
-    if temp == "ðŸŸ¡ ATENÃ‡ÃƒO":
-        return "ðŸŸ¡ Cliente passou levemente do ciclo. Fazer contato de retomada antes que esfrie."
-    if temp == "ðŸ”´ ATRASADO NA RECOMPRA":
-        return "ðŸ”´ Cliente atrasado na recompra. Entender se comprou de concorrente ou se esqueceu."
-    if temp == "âš« CLIENTE INATIVO":
-        return "âš« Cliente inativo. Usar abordagem de reativaÃ§Ã£o com condiÃ§Ã£o especial."
+        return "Cliente com inadimplência. Priorizar cobrança antes de nova venda."
+    if orcs > 0 and temp in ["QUENTE", "ATENÇÃO"]:
+        return "Cliente com orçamento em aberto e bom momento de compra. Priorizar fechamento hoje."
+    if temp == "QUENTE":
+        return f"Momento ideal. Ligar com oferta direta. Potencial mensal: {fmt(potencial)}."
+    if temp == "ATENÇÃO":
+        return "Cliente passou levemente do ciclo. Fazer contato de retomada antes que esfrie."
+    if temp == "ATRASADO NA RECOMPRA":
+        return "Cliente atrasado na recompra. Entender se comprou de concorrente ou se esqueceu."
+    if temp == "CLIENTE INATIVO":
+        return "Cliente inativo. Usar abordagem de reativação com condição especial."
     if orcs > 0:
-        return "ðŸ“„ Cliente com orÃ§amento em aberto. Fazer follow-up comercial."
-    if temp == "ðŸ”µ CEDO":
-        return "ðŸ”µ Ainda cedo para venda direta. Manter relacionamento ou aquecer contato."
-    return "ðŸŸ£ Cliente novo. Iniciar relacionamento comercial."
+        return "Cliente com orçamento em aberto. Fazer follow-up comercial."
+    if temp == "CEDO":
+        return "Ainda cedo para venda direta. Manter relacionamento ou aquecer contato."
+    return "Cliente novo. Iniciar relacionamento comercial."
 
 def score_comercial(row):
     score = 0
     temp = row["temperatura"]
-    if temp == "ðŸŸ¢ QUENTE":
+    if temp == "QUENTE":
         score += 40
-    elif temp == "ðŸŸ¡ ATENÃ‡ÃƒO":
+    elif temp == "ATENÇÃO":
         score += 30
-    elif temp == "ðŸ”´ ATRASADO NA RECOMPRA":
+    elif temp == "ATRASADO NA RECOMPRA":
         score += 20
-    elif temp == "âš« CLIENTE INATIVO":
+    elif temp == "CLIENTE INATIVO":
         score += 10
     if row["orcamentos_em_aberto"] > 0:
         score += 20
@@ -2670,6 +2713,9 @@ def processar_dataframes(vendas, orc, contas):
     orc_aberto = orc_aberto[
         orc_aberto[co_data] >= (hoje - pd.Timedelta(days=90))
     ].copy()
+    orc_aberto = remover_orcamentos_com_venda_posterior(
+        orc_aberto, vendas, co_data, "_cliente_chave"
+    )
 
     orc_aberto["dias_no_sistema"] = (hoje - orc_aberto[co_data]).dt.days
     orc_aberto["acao_recomendada_orcamento"] = orc_aberto["dias_no_sistema"].apply(status_orcamento)
@@ -2737,7 +2783,7 @@ def processar_dataframes(vendas, orc, contas):
     clientes["cliente_estrategico"] = clientes["faturamento"] >= limite_estrategico
 
     clientes["potencial_recuperavel"] = clientes.apply(
-        lambda x: x["potencial_mensal"] if x["temperatura"] in ["ðŸ”´ ATRASADO NA RECOMPRA", "âš« CLIENTE INATIVO"] else 0,
+        lambda x: x["potencial_mensal"] if x["temperatura"] in ["ATRASADO NA RECOMPRA", "CLIENTE INATIVO"] else 0,
         axis=1
     )
 
@@ -3019,11 +3065,11 @@ def enriquecer_regras_prioridade(clientes, orc_aberto):
         if retornos:
             motivos.append("Retorno programado")
         if orc.get("orc_risco", 0):
-            motivos.append("OrÃ§amento em risco de perda")
+            motivos.append("Orçamento em risco de perda")
         elif orc.get("orc_urgente", 0):
-            motivos.append("OrÃ§amento urgente")
+            motivos.append("Orçamento urgente")
         elif orc.get("orc_ligar", 0):
-            motivos.append("OrÃ§amento: ligar hoje")
+            motivos.append("Orçamento: ligar hoje")
         if proximo_recompra:
             motivos.append("PrÃ³ximo da recompra")
         if row["intervalo"] > 0 and row["dias_sem_comprar"] > row["intervalo"] * 1.2:
@@ -3072,7 +3118,7 @@ def montar_resumo(clientes):
         clientes = clientes.copy()
         clientes["contato_recente"] = False
     temperaturas = clientes["temperatura"].isin([
-        "ðŸŸ¢ QUENTE", "ðŸŸ¡ ATENÃ‡ÃƒO", "ðŸ”´ ATRASADO NA RECOMPRA", "âš« CLIENTE INATIVO"
+        "QUENTE", "ATENÇÃO", "ATRASADO NA RECOMPRA", "CLIENTE INATIVO"
     ])
     regras = (
         clientes["retornos_hoje"].gt(0)
@@ -3428,6 +3474,29 @@ def criar_orcamento_gestaoclick_api(
 def status_aberto_resumo_diario(status):
     return not status_fechado_orcamento(status)
 
+def remover_orcamentos_com_venda_posterior(orcamentos, vendas, col_data_orc, col_chave_orc="_cliente_chave"):
+    if orcamentos.empty or vendas.empty or not col_data_orc or col_chave_orc not in orcamentos.columns:
+        return orcamentos
+    data_venda_col = achar_coluna(vendas, ["data"])
+    chave_venda_col = "_cliente_chave" if "_cliente_chave" in vendas.columns else achar_coluna(vendas, ["cliente id", "cliente"])
+    if not data_venda_col or not chave_venda_col:
+        return orcamentos
+    vendas_ref = vendas[[chave_venda_col, data_venda_col]].copy()
+    vendas_ref[data_venda_col] = pd.to_datetime(vendas_ref[data_venda_col], errors="coerce")
+    vendas_ref = vendas_ref.dropna(subset=[data_venda_col])
+    if vendas_ref.empty:
+        return orcamentos
+    ultima_venda = vendas_ref.groupby(chave_venda_col)[data_venda_col].max()
+    base = orcamentos.copy()
+    base[col_data_orc] = pd.to_datetime(base[col_data_orc], errors="coerce")
+    base["_ultima_venda_pos_orc"] = base[col_chave_orc].map(ultima_venda)
+    convertido = (
+        base["_ultima_venda_pos_orc"].notna()
+        & base[col_data_orc].notna()
+        & (base["_ultima_venda_pos_orc"].dt.normalize() >= base[col_data_orc].dt.normalize())
+    )
+    return base[~convertido].drop(columns=["_ultima_venda_pos_orc"], errors="ignore").copy()
+
 def data_retorno_cliente(cliente_id, cliente):
     retornos = retornos_pendentes_cliente(cliente_id, cliente)
     datas = []
@@ -3635,6 +3704,14 @@ def montar_resumo_diario_oportunidades(dados, vendedor="Todas"):
     else:
         orcamentos["_cliente_chave_resumo"] = orcamentos[co_cli].map(norm)
 
+    orcamentos = remover_orcamentos_com_venda_posterior(
+        orcamentos, vendas, co_data, "_cliente_chave_resumo"
+    )
+    if orcamentos.empty:
+        return pd.DataFrame(), {
+            "calls": 0, "hot": 0, "returns": 0, "untouched": 0, "expiring": 0
+        }
+
     venda_counts = pd.Series(dtype=int)
     if not vendas.empty:
         chave_venda = "_cliente_chave" if "_cliente_chave" in vendas.columns else achar_coluna(vendas, ["cliente id", "cliente"])
@@ -3669,20 +3746,20 @@ def montar_resumo_diario_oportunidades(dados, vendedor="Todas"):
             categorias.append((110, "RETORNO", "Retorno agendado para hoje ou atrasado", "Retornar"))
             counters["returns"] += 1
         elif not ja_ligou and idade == 2:
-            categorias.append((100, "RETORNO", "OrÃ§amento com 2 dias: ligar hoje", "Ligar"))
+            categorias.append((100, "RETORNO", "Orçamento com 2 dias: ligar hoje", "Ligar"))
             counters["returns"] += 1
         if not ja_ligou and idade == 3:
-            categorias.append((105, "SEM CONTATO", "Urgente: orÃ§amento com 3 dias", "Ligar urgente"))
+            categorias.append((105, "SEM CONTATO", "Urgente: orçamento com 3 dias", "Ligar urgente"))
             counters["untouched"] += 1
         elif not ja_ligou and idade >= 4:
-            categorias.append((108, "SEM CONTATO", f"Risco de perda: orÃ§amento com {idade} dias", "Priorizar"))
+            categorias.append((108, "SEM CONTATO", f"Risco de perda: orçamento com {idade} dias", "Priorizar"))
             counters["untouched"] += 1
 
         sinais = []
         if total >= 5000:
             sinais.append("alto valor")
         if compra_count > 0:
-            sinais.append("jÃ¡ comprou")
+            sinais.append("já comprou")
         if budget_count > 1:
             sinais.append("cliente recorrente")
         if ja_ligou:
@@ -3699,7 +3776,7 @@ def montar_resumo_diario_oportunidades(dados, vendedor="Todas"):
             categorias.append((85, "VENCENDO", f"Validade termina em {dias} dias", "Renovar"))
             counters["expiring"] += 1
         if not ja_ligou and idade == 1:
-            categorias.append((60, "NOVO", "OrÃ§amento com 1 dia: acompanhamento normal", "Acompanhar"))
+            categorias.append((60, "NOVO", "Orçamento com 1 dia: acompanhamento normal", "Acompanhar"))
 
         if not categorias:
             continue
@@ -3707,7 +3784,7 @@ def montar_resumo_diario_oportunidades(dados, vendedor="Todas"):
         numero_orcamento = texto_valido(row.get(co_num, ""))
         oferta_orcamento = motivo
         if numero_orcamento:
-            oferta_orcamento = f"{motivo}. Acompanhar orÃ§amento {numero_orcamento}."
+            oferta_orcamento = f"{motivo}. Acompanhar orçamento {numero_orcamento}."
         if categoria in ("RETORNO", "SEM CONTATO", "VENCENDO"):
             counters["calls"] += 1
         linhas.append({
@@ -3974,7 +4051,7 @@ def texto_whatsapp_resumo(cliente, vendedor, oferta, row=None):
     return (
         f"Oi, tudo bem? Aqui Ã© {vendedor}, da Novaprint.\n\n"
         f"Passando para retomar este ponto: {oferta}\n\n"
-        "Quer que eu te ajude a dar sequÃªncia?"
+        "Quer que eu te ajude a dar sequência?"
     )
 
 def renderizar_whatsapp_resumo(cliente, vendedor, oferta, chave, row=None):
@@ -4017,7 +4094,7 @@ def renderizar_whatsapp_resumo(cliente, vendedor, oferta, chave, row=None):
                             cliente_id,
                             cliente,
                             vendedor,
-                            f"WhatsApp enviado pelo Watidy. Oferta/aÃ§Ã£o: {oferta}",
+                            f"WhatsApp enviado pelo Watidy. Oferta/ação: {oferta}",
                             "whatsapp",
                             "whatsapp enviado",
                         )
@@ -4025,10 +4102,10 @@ def renderizar_whatsapp_resumo(cliente, vendedor, oferta, chave, row=None):
                         if resposta:
                             st.caption(resposta[:300])
                     except Exception as e:
-                        st.error(f"NÃ£o foi possÃ­vel enviar pelo Watidy: {e}")
+                        st.error(f"Não foi possível enviar pelo Watidy: {e}")
                         st.markdown(f"[Abrir conversa no WhatsApp]({link})")
             else:
-                st.caption("Watidy nÃ£o configurado nos secrets. Usando rascunho manual.")
+                st.caption("Watidy não configurado nos secrets. Usando rascunho manual.")
                 st.markdown(f"[Abrir conversa no WhatsApp]({link})")
         else:
             st.caption("Informe o WhatsApp do cliente para gerar a conversa.")
@@ -4038,7 +4115,7 @@ def renderizar_criar_orcamento_sugerido(row, chave):
     cliente_id = texto_valido(row.get("Cliente ID", row.get("_cliente_id", "")))
     if not produto or not cliente_id:
         return
-    with st.expander("Criar orÃ§amento"):
+    with st.expander("Criar orçamento"):
         valor_sugerido = numero_seguro(row.get("_ultimo_valor_sugerido", 0), 0.0)
         data_preco = row.get("_ultima_data_preco")
         qtd = st.number_input(
@@ -4055,18 +4132,18 @@ def renderizar_criar_orcamento_sugerido(row, chave):
             step=10.0,
             key=f"orc_sug_valor_{chave}",
         )
-        data_txt = data_preco.strftime("%d/%m/%Y") if pd.notna(data_preco) else "data nÃ£o identificada"
-        st.caption(f"PreÃ§o sugerido da Ãºltima venda em {data_txt}.")
+        data_txt = data_preco.strftime("%d/%m/%Y") if pd.notna(data_preco) else "data não identificada"
+        st.caption(f"Preço sugerido da última venda em {data_txt}.")
         codigo = st.text_input(
-            "NÃºmero do orÃ§amento (opcional)",
+            "Número do orçamento (opcional)",
             key=f"orc_sug_codigo_{chave}",
         )
         confirmado = st.checkbox(
-            "Revisei e autorizo criar este orÃ§amento no GestÃ£oClick.",
+            "Revisei e autorizo criar este orçamento no GestãoClick.",
             key=f"orc_sug_confirmar_{chave}",
         )
         if st.button(
-            "Criar orÃ§amento no GestÃ£oClick",
+            "Criar orçamento no GestãoClick",
             disabled=not confirmado,
             type="primary",
             use_container_width=True,
@@ -4078,7 +4155,7 @@ def renderizar_criar_orcamento_sugerido(row, chave):
                     "quantidade": qtd,
                     "valor": valor,
                     "data_preco": data_preco,
-                    "detalhes": f"PreÃ§o sugerido da Ãºltima venda em {data_txt}.",
+                    "detalhes": f"Preço sugerido da última venda em {data_txt}.",
                 }
                 criado = criar_orcamento_gestaoclick_api(
                     st.session_state.dados_processados,
@@ -4089,28 +4166,28 @@ def renderizar_criar_orcamento_sugerido(row, chave):
                     f"Criado pelo CRM Inteligente. Produto sugerido: {produto}.",
                 )
                 numero = criado.get("codigo") or criado.get("id")
-                st.success(f"OrÃ§amento {numero} criado no GestÃ£oClick.")
+                st.success(f"Orçamento {numero} criado no GestãoClick.")
             except Exception as e:
-                st.error(f"NÃ£o foi possÃ­vel criar o orÃ§amento: {e}")
+                st.error(f"Não foi possível criar o orçamento: {e}")
 
 def renderizar_card_resumo(row, indice, modo="prioridade"):
-    cliente = texto_valido(row.get("Cliente", ""), "Cliente sem nome")
-    vendedor = texto_valido(row.get("Vendedor", ""), "Sem vendedor")
+    cliente = limpar_texto_interface(texto_valido(row.get("Cliente", ""), "Cliente sem nome"))
+    vendedor = limpar_texto_interface(texto_valido(row.get("Vendedor", ""), "Sem vendedor"))
     cliente_id = texto_valido(row.get("_cliente_id", row.get("Cliente ID", "")))
     valor = row.get("Valor", row.get("Ticket mÃ©dio", 0))
-    oferta = texto_valido(row.get("Oferta", row.get("Motivo", "")))
-    categoria = texto_valido(row.get("Categoria", ""), "Recompra")
+    oferta = limpar_texto_interface(texto_valido(row.get("Oferta", row.get("Motivo", ""))))
+    categoria = limpar_texto_interface(texto_valido(row.get("Categoria", ""), "Recompra"))
     score = row.get("Score", "")
-    orcamento = texto_valido(row.get("OrÃ§amento", ""))
-    acao = texto_valido(row.get("AÃ§Ã£o", ""))
-    produto = texto_valido(row.get("Produto", ""))
+    orcamento = texto_valido(row.get("OrÃ§amento", row.get("Orçamento", "")))
+    acao = limpar_texto_interface(texto_valido(row.get("AÃ§Ã£o", row.get("Ação", ""))))
+    produto = limpar_texto_interface(texto_valido(row.get("Produto", "")))
     dias = row.get("Dias sem comprar", row.get("Idade", ""))
     intervalo = row.get("Intervalo", "")
     if not oferta:
         if orcamento:
-            oferta = f"Acompanhar retorno do orÃ§amento {orcamento}"
+            oferta = f"Acompanhar retorno do orçamento {orcamento}"
         elif produto:
-            oferta = f"Oferecer reposiÃ§Ã£o de {produto}"
+            oferta = f"Oferecer reposição de {produto}"
         else:
             oferta = "Acompanhamento comercial do cliente"
     chave = chave_widget(
@@ -4120,15 +4197,15 @@ def renderizar_card_resumo(row, indice, modo="prioridade"):
     if produto:
         detalhes.append(f"Produto sugerido: <b>{html_seguro(produto)}</b>")
     if orcamento:
-        detalhes.append(f"OrÃ§amento: <b>{html_seguro(orcamento)}</b>")
+        detalhes.append(f"Orçamento: <b>{html_seguro(orcamento)}</b>")
     if valor_informado(dias):
-        detalhes.append(f"Dias em atenÃ§Ã£o: <b>{html_seguro(dias)}</b>")
+        detalhes.append(f"Dias em atenção: <b>{html_seguro(dias)}</b>")
     if valor_informado(intervalo):
-        detalhes.append(f"Ciclo mÃ©dio: <b>{html_seguro(intervalo)} dias</b>")
+        detalhes.append(f"Ciclo médio: <b>{html_seguro(intervalo)} dias</b>")
     if valor_informado(score):
         detalhes.append(f"Score: <b>{html_seguro(score)}</b>")
     if acao:
-        detalhes.append(f"AÃ§Ã£o sugerida: <b>{html_seguro(acao)}</b>")
+        detalhes.append(f"Ação sugerida: <b>{html_seguro(acao)}</b>")
     detalhes_html = "<br>".join(detalhes)
 
     st.markdown(
@@ -4139,7 +4216,7 @@ Vendedor: <b>{html_seguro(vendedor)}</b><br>
 Valor/ticket: <b>{fmt_html(valor)}</b><br>
 Tipo de prioridade: <b>{html_seguro(categoria)}</b><br>
 <br>
-<b>Por que estÃ¡ na fila?</b><br>
+<b>Por que está na fila?</b><br>
 {html_seguro(oferta)}<br>
 {detalhes_html}
 </div>
@@ -4154,7 +4231,7 @@ Tipo de prioridade: <b>{html_seguro(categoria)}</b><br>
 
 def renderizar_grid_resumo(df, modo):
     if df.empty:
-        st.info("Nenhum cliente encontrado para esta visÃ£o.")
+        st.info("Nenhum cliente encontrado para esta visão.")
         return
     linhas = list(df.head(30).iterrows())
     for i in range(0, len(linhas), 3):
@@ -4503,6 +4580,32 @@ def renderizar_resumo_diario(dados):
         st.session_state.resumo_diario_secao = "Início"
 
     secao = st.session_state.resumo_diario_secao
+    secoes_comercial = [
+        "Início",
+        "Fila de prioridades",
+        "Churn e retenção",
+        "Orçamentos",
+        "Ofertas de recompra",
+        "Buscar cliente/produtos",
+        "Ações rápidas",
+        "Visão de gestão",
+    ]
+    if secao not in secoes_comercial:
+        secao = "Início"
+        st.session_state.resumo_diario_secao = secao
+
+    st.markdown("#### Áreas do Comercial")
+    botoes = st.columns(4)
+    for idx, nome_secao in enumerate(secoes_comercial):
+        tipo = "primary" if nome_secao == secao else "secondary"
+        if botoes[idx % 4].button(
+            nome_secao,
+            key=f"comercial_nav_{chave_widget(nome_secao)}",
+            type=tipo,
+            use_container_width=True,
+        ):
+            st.session_state.resumo_diario_secao = nome_secao
+            st.rerun()
 
     if secao == "Início":
         st.markdown("#### Prioridades e ofertas para hoje")
@@ -4780,10 +4883,10 @@ def gerar_texto_email(
         f"- Resultado financeiro do mÃªs: {fmt(metricas_fin['resultado_mes'])}",
         "",
         "CARTEIRA",
-        f"- Quentes: {int(temperaturas.get('ðŸŸ¢ QUENTE', 0))}",
-        f"- Em atenÃ§Ã£o: {int(temperaturas.get('ðŸŸ¡ ATENÃ‡ÃƒO', 0))}",
-        f"- Atrasados na recompra: {int(temperaturas.get('ðŸ”´ ATRASADO NA RECOMPRA', 0))}",
-        f"- Inativos: {int(temperaturas.get('âš« CLIENTE INATIVO', 0))}",
+        f"- Quentes: {int(temperaturas.get('QUENTE', 0))}",
+        f"- Em atenção: {int(temperaturas.get('ATENÇÃO', 0))}",
+        f"- Atrasados na recompra: {int(temperaturas.get('ATRASADO NA RECOMPRA', 0))}",
+        f"- Inativos: {int(temperaturas.get('CLIENTE INATIVO', 0))}",
         "",
         f"PRIORIDADES DE HOJE ({len(prioridade)})"
     ]
@@ -4930,10 +5033,10 @@ def gerar_pdf(
     temperaturas = clientes["temperatura"].value_counts()
     carteira = [
         [p("SituaÃ§Ã£o"), p("Clientes")],
-        [p("Quentes"), p(int(temperaturas.get("ðŸŸ¢ QUENTE", 0)))],
-        [p("Em atenÃ§Ã£o"), p(int(temperaturas.get("ðŸŸ¡ ATENÃ‡ÃƒO", 0)))],
-        [p("Atrasados na recompra"), p(int(temperaturas.get("ðŸ”´ ATRASADO NA RECOMPRA", 0)))],
-        [p("Inativos"), p(int(temperaturas.get("âš« CLIENTE INATIVO", 0)))],
+        [p("Quentes"), p(int(temperaturas.get("QUENTE", 0)))],
+        [p("Em atenção"), p(int(temperaturas.get("ATENÇÃO", 0)))],
+        [p("Atrasados na recompra"), p(int(temperaturas.get("ATRASADO NA RECOMPRA", 0)))],
+        [p("Inativos"), p(int(temperaturas.get("CLIENTE INATIVO", 0)))],
         [p("Novos"), p(int(temperaturas.get("ðŸŸ£ NOVO", 0)))],
     ]
     elementos.append(Paragraph("2. SituaÃ§Ã£o da carteira", styles["SecaoCEO"]))
@@ -5486,6 +5589,9 @@ def renderizar_qualidade_dados(dados):
         st.dataframe(tabela_ativos, use_container_width=True, hide_index=True)
 
 def renderizar_card_metric(coluna, titulo, valor, detalhe="", ajuda=None):
+    titulo = limpar_texto_interface(titulo)
+    detalhe = limpar_texto_interface(detalhe)
+    ajuda = limpar_texto_interface(ajuda) if ajuda else ajuda
     coluna.metric(titulo, valor, detalhe, help=ajuda)
 
 def renderizar_cards_orcamentos_simples(orcamentos, co_num, co_cli, co_valor, incluir_acao=False):
@@ -5658,111 +5764,114 @@ def renderizar_retencao_crescimento_ceo(
     indicadores, clientes, prioridade
 ):
     st.markdown("---")
-    st.subheader("RETENÃ‡ÃƒO E CRESCIMENTO")
+    st.subheader("Retenção e Crescimento")
     contagem = indicadores["contagem_status"]
     historico = indicadores["historico"]
     receita_prevista = float(clientes["faturamento"].sum())
     venda_possivel = float(prioridade["ticket_medio"].sum())
+    saudaveis = int(contagem.get("SAUDÁVEL", contagem.get("SAUDÃVEL", 0)))
+    em_risco = int(contagem.get("EM RISCO", 0))
+    churn_qtd = int(contagem.get("CHURN", 0))
 
     linha1 = st.columns(4)
     renderizar_card_metric(
-        linha1[0], "ðŸ’° Receita Prevista", fmt(receita_prevista),
-        ajuda="Faturamento total do perÃ­odo carregado no sistema."
+        linha1[0], "Receita prevista", fmt(receita_prevista),
+        ajuda="Faturamento total do período carregado no sistema."
     )
     renderizar_card_metric(
-        linha1[1], "ðŸŽ¯ Venda PossÃ­vel Hoje", fmt(venda_possivel),
-        ajuda="Soma do ticket mÃ©dio dos clientes na prioridade comercial de hoje."
+        linha1[1], "Venda possível hoje", fmt(venda_possivel),
+        ajuda="Soma do ticket médio dos clientes na prioridade comercial de hoje."
     )
     renderizar_card_metric(
-        linha1[2], "âš ï¸ Carteira em Risco",
+        linha1[2], "Carteira em risco",
         fmt(indicadores["carteira_risco_mensal"]),
         f"{indicadores['qtd_risco']} clientes",
-        "Receita que pode ser perdida caso clientes em risco nÃ£o sejam trabalhados."
+        "Receita que pode ser perdida caso clientes em risco não sejam trabalhados."
     )
     renderizar_card_metric(
-        linha1[3], "ðŸ”„ Potencial RecuperÃ¡vel",
+        linha1[3], "Potencial recuperável",
         fmt(indicadores["potencial_recuperavel_mensal"]),
         f"{indicadores['qtd_recuperaveis']} clientes",
-        "Receita que pode voltar para a empresa atravÃ©s da recuperaÃ§Ã£o da carteira."
+        "Receita que pode voltar para a empresa através da recuperação da carteira."
     )
 
     linha2 = st.columns(4)
     renderizar_card_metric(
-        linha2[0], "ðŸš¨ Churn Financeiro",
+        linha2[0], "Churn financeiro",
         fmt(indicadores["churn_financeiro_mensal"]),
         f"Anual: {fmt(indicadores['churn_financeiro_anual'])}",
         "Receita potencial perdida por clientes que deixaram de comprar."
     )
     renderizar_card_metric(
-        linha2[1], "ðŸ‘¥ Clientes em Risco",
-        int(contagem.get("EM RISCO", 0)),
-        ajuda="Clientes que passaram do ciclo mÃ©dio de compra, mas ainda nÃ£o chegaram a 2x o ciclo."
+        linha2[1], "Clientes em risco",
+        em_risco,
+        ajuda="Clientes que passaram do ciclo médio de compra, mas ainda não chegaram a 2x o ciclo."
     )
     renderizar_card_metric(
-        linha2[2], "âŒ Clientes Perdidos",
-        int(contagem.get("CHURN", 0)),
-        ajuda="Clientes hÃ¡ mais de duas vezes o ciclo mÃ©dio de recompra sem comprar."
+        linha2[2], "Clientes perdidos",
+        churn_qtd,
+        ajuda="Clientes há mais de duas vezes o ciclo médio de recompra sem comprar."
     )
     cac_valor = (
         fmt(indicadores["cac_atual"])
         if indicadores["novos_clientes_atual"] else "Sem novos clientes"
     )
     renderizar_card_metric(
-        linha2[3], "ðŸ’µ CAC Atual", cac_valor,
+        linha2[3], "CAC atual", cac_valor,
         texto_variacao(indicadores["cac_variacao"]),
         "Quanto custa adquirir um novo cliente."
     )
 
     st.caption(
         f"CAC anterior: {fmt(indicadores['cac_anterior'])} | "
-        f"Novos clientes no mÃªs atual: {indicadores['novos_clientes_atual']} | "
-        f"Novos clientes no mÃªs anterior: {indicadores['novos_clientes_anterior']}"
+        f"Novos clientes no mês atual: {indicadores['novos_clientes_atual']} | "
+        f"Novos clientes no mês anterior: {indicadores['novos_clientes_anterior']}"
     )
 
-    st.markdown("#### Clientes Perdidos")
+    st.markdown("#### Clientes por situação")
     col_status = st.columns(3)
-    col_status[0].metric("SaudÃ¡veis", int(contagem.get("SAUDÃVEL", 0)))
-    col_status[1].metric("Em risco", int(contagem.get("EM RISCO", 0)))
-    col_status[2].metric("Churn", int(contagem.get("CHURN", 0)))
+    col_status[0].metric("Saudáveis", saudaveis)
+    col_status[1].metric("Em risco", em_risco)
+    col_status[2].metric("Churn", churn_qtd)
 
-    st.markdown("#### Taxa de RecuperaÃ§Ã£o")
+    st.markdown("#### Taxa de recuperação")
     st.metric(
         "Clientes recuperados / clientes marcados como em risco",
         f"{indicadores['taxa_recuperacao']:.1f}%",
-        help="Clientes que estavam em risco no mÃªs anterior e voltaram a comprar no mÃªs atual."
+        help="Clientes que estavam em risco no mês anterior e voltaram a comprar no mês atual."
     )
 
     if historico.empty:
-        st.info("Ainda nÃ£o hÃ¡ histÃ³rico mensal suficiente para os grÃ¡ficos executivos.")
+        st.info("Ainda não há histórico mensal suficiente para os gráficos executivos.")
         return
 
-    grafico = historico.set_index("MÃªs")
+    grafico = historico.copy()
+    mes_col = "Mês" if "Mês" in grafico.columns else "MÃªs"
+    taxa_col = "Taxa de recuperação" if "Taxa de recuperação" in grafico.columns else "Taxa de recuperaÃ§Ã£o"
+    grafico = grafico.set_index(mes_col)
     col_g1, col_g2 = st.columns(2)
     with col_g1:
-        st.markdown("#### EvoluÃ§Ã£o do Churn Financeiro")
+        st.markdown("#### Evolução do churn financeiro")
         st.line_chart(grafico[["Churn financeiro"]])
     with col_g2:
-        st.markdown("#### EvoluÃ§Ã£o da Carteira em Risco")
+        st.markdown("#### Evolução da carteira em risco")
         st.line_chart(grafico[["Carteira em risco"]])
 
     col_g3, col_g4 = st.columns(2)
     with col_g3:
-        st.markdown("#### EvoluÃ§Ã£o do CAC")
+        st.markdown("#### Evolução do CAC")
         st.line_chart(grafico[["CAC"]])
     with col_g4:
-        st.markdown("#### Clientes por Status")
+        st.markdown("#### Clientes por status")
         status_df = pd.DataFrame({
-            "Status": ["SaudÃ¡veis", "Em risco", "Churn"],
-            "Clientes": [
-                int(contagem.get("SAUDÃVEL", 0)),
-                int(contagem.get("EM RISCO", 0)),
-                int(contagem.get("CHURN", 0)),
-            ]
+            "Status": ["Saudáveis", "Em risco", "Churn"],
+            "Clientes": [saudaveis, em_risco, churn_qtd]
         }).set_index("Status")
         st.bar_chart(status_df)
 
-    st.markdown("#### HistÃ³rico da Taxa de RecuperaÃ§Ã£o")
-    st.line_chart(grafico[["Taxa de recuperaÃ§Ã£o"]])
+    st.markdown("#### Histórico da taxa de recuperação")
+    if taxa_col in grafico.columns:
+        st.line_chart(grafico[[taxa_col]])
 
 def supabase_select(tabela, query=""):
     try:
@@ -5967,6 +6076,35 @@ CREATE TABLE IF NOT EXISTS ocorrencias (
 def renderizar_followup_crm():
     st.subheader("Follow-up")
     st.caption("Envio semi-automático pelo CRM e acompanhamento da rotina automática externa das 10h.")
+    fila = supabase_select("followup_fila", "?select=*&order=data_programada.asc,criado_em.asc&limit=500")
+    fila_df = pd.DataFrame(fila)
+    hoje = pd.Timestamp(date.today())
+    if fila_df.empty:
+        fila_df = pd.DataFrame(columns=["status", "data_programada", "cliente", "vendedor", "canal", "erro"])
+    fila_df["data_programada_dt"] = pd.to_datetime(fila_df.get("data_programada"), errors="coerce")
+    status_norm = fila_df.get("status", pd.Series(dtype=str)).astype(str).str.lower()
+    pendentes = int((status_norm == "pendente").sum())
+    enviados = int((status_norm == "enviado").sum())
+    erros = int((status_norm == "erro").sum())
+    sem_resposta = int(status_norm.isin(["enviado"]).sum())
+    hoje_qtd = int((fila_df["data_programada_dt"].dt.normalize() == hoje).sum()) if not fila_df.empty else 0
+    atrasados = int(((fila_df["data_programada_dt"].dt.normalize() < hoje) & (status_norm == "pendente")).sum()) if not fila_df.empty else 0
+    c1, c2, c3, c4, c5, c6 = st.columns(6)
+    c1.metric("Pendentes", pendentes)
+    c2.metric("Enviados", enviados)
+    c3.metric("Erros", erros)
+    c4.metric("Sem resposta", sem_resposta)
+    c5.metric("Hoje", hoje_qtd)
+    c6.metric("Atrasados", atrasados)
+    with st.expander("Fila de follow-up", expanded=False):
+        if fila_df.empty:
+            st.info("Nenhum follow-up na fila.")
+        else:
+            st.dataframe(
+                fila_df.drop(columns=["data_programada_dt"], errors="ignore"),
+                use_container_width=True,
+                hide_index=True,
+            )
     contas = contas_email_saida()
     if not contas:
         st.warning("Nenhuma caixa SMTP configurada em [email_smtp].accounts nos secrets.")
@@ -5995,6 +6133,16 @@ def renderizar_followup_crm():
                         "conta_saida": conta.get("email"),
                         "enviado_em": datetime.now().isoformat(),
                         "origem": origem,
+                    })
+                    supabase_insert("followup_fila", {
+                        "cliente": destino.strip(),
+                        "canal": "email",
+                        "email": destino.strip(),
+                        "mensagem": corpo,
+                        "status": "enviado",
+                        "enviado_em": datetime.now().isoformat(),
+                        "origem": "followup_manual_crm",
+                        "resposta_api": {"origem": origem, "assunto": assunto},
                     })
                     st.success("Follow-up enviado e registrado.")
                 except Exception as e:
@@ -6139,7 +6287,7 @@ def renderizar():
         orc_2_dias = orc_operacional[orc_operacional["dias_no_sistema"] == 2].copy() if not orc_operacional.empty else pd.DataFrame()
         orc_urgentes = orc_operacional[orc_operacional["dias_no_sistema"] >= 3].copy() if not orc_operacional.empty else pd.DataFrame()
         atraso_recompra = clientes[
-            clientes["temperatura"].isin(["ðŸ”´ ATRASADO NA RECOMPRA", "âš« CLIENTE INATIVO"])
+            clientes["temperatura"].isin(["ATRASADO NA RECOMPRA", "CLIENTE INATIVO"])
             & (~clientes["contato_recente"])
         ].copy()
         retornos_hoje = clientes[
@@ -6683,6 +6831,7 @@ with st.sidebar.expander("Comercial", expanded=False):
         "Fila de prioridades",
         "Churn e retenção",
         "Orçamentos",
+        "Ofertas de recompra",
         "Buscar cliente/produtos",
         "Ações rápidas",
         "Visão de gestão",
