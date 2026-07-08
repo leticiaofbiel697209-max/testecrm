@@ -1,15 +1,7 @@
-"""Análise de cliente, churn e recompra."""
+"""Análise de cliente.
 
-from app import (
-    calcular_churn,
-    calcular_churn_avancado,
-    listar_clientes_churn,
-    renderizar_busca_cliente_produtos,
-)
+Reservado para migração das funções de histórico, produtos comprados/orçados e
+recompra sugerida que hoje ainda estão no `app.py`.
+"""
 
-__all__ = [
-    "calcular_churn",
-    "calcular_churn_avancado",
-    "listar_clientes_churn",
-    "renderizar_busca_cliente_produtos",
-]
+CLIENTE_STATUS = ["saudável", "em risco", "churn", "inativo", "novo"]

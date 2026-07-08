@@ -1,15 +1,15 @@
-"""Painel CEO e indicadores estratégicos."""
+"""Contratos do Dashboard CEO."""
 
-from app import (
-    calcular_indicadores_retencao_ceo,
-    renderizar_financeiro_ceo,
-    renderizar_financeiro_real,
-    renderizar_retencao_crescimento_ceo,
-)
-
-__all__ = [
-    "calcular_indicadores_retencao_ceo",
-    "renderizar_financeiro_ceo",
-    "renderizar_financeiro_real",
-    "renderizar_retencao_crescimento_ceo",
+INDICADORES_CEO = [
+    "faturamento",
+    "lucro estimado",
+    "margem estimada",
+    "contas a receber",
+    "inadimplência",
+    "contas a pagar",
+    "previsão de caixa",
+    "clientes em risco",
+    "churn estimado",
+    "CAC",
+    "desempenho por vendedor",
 ]

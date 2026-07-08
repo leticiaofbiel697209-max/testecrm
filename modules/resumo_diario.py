@@ -1,13 +1,5 @@
-"""Resumo Diário integrado ao CRM."""
+"""Resumo diário comercial."""
 
-from app import (
-    montar_ofertas_recompra,
-    montar_resumo_diario_oportunidades,
-    renderizar_resumo_diario,
-)
+from .comercial import SECOES_COMERCIAL
 
-__all__ = [
-    "montar_ofertas_recompra",
-    "montar_resumo_diario_oportunidades",
-    "renderizar_resumo_diario",
-]
+__all__ = ["SECOES_COMERCIAL"]

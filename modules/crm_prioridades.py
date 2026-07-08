@@ -1,17 +1,9 @@
-"""Prioridades comerciais e ações de vendedor."""
+"""Regras de prioridade comercial."""
 
-from app import (
-    card_cliente,
-    montar_prioridade,
-    montar_resumo,
-    salvar_contato_realizado,
-    agendar_retorno_cliente,
-)
-
-__all__ = [
-    "card_cliente",
-    "montar_prioridade",
-    "montar_resumo",
-    "salvar_contato_realizado",
-    "agendar_retorno_cliente",
+PRIORIDADES = [
+    "retorno programado",
+    "orçamento sem retorno",
+    "recompra",
+    "churn",
+    "sem contato",
 ]
