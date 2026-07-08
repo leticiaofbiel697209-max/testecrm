@@ -1,17 +1,7 @@
-"""Serviços de persistência Google Sheets do CRM Novaprint."""
+"""Google Sheets como backup/exportação.
 
-from app import (
-    NOME_PLANILHA,
-    aba_sheets,
-    carregar_persistencia_crm,
-    conectar_google_sheets,
-    garantir_abas_crm,
-)
+A persistência principal deve ser Supabase. Este módulo fica reservado para
+rotinas de exportação e compatibilidade.
+"""
 
-__all__ = [
-    "NOME_PLANILHA",
-    "aba_sheets",
-    "carregar_persistencia_crm",
-    "conectar_google_sheets",
-    "garantir_abas_crm",
-]
+BACKUP_ABAS = ["ContatosRealizados", "RetornosProgramados", "ObservacoesClientes"]

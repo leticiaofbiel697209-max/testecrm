@@ -1,5 +1,7 @@
-"""Geração de PDF comercial/CEO."""
+"""Serviços de PDF.
 
-from app import gerar_pdf, link_download_bytes
+As rotinas completas de geração ainda estão no legado `app.py` e serão migradas
+para cá em uma próxima etapa.
+"""
 
-__all__ = ["gerar_pdf", "link_download_bytes"]
+REPORTS = ["relatorio_comercial", "resumo_ceo"]
